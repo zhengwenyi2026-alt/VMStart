@@ -22,3 +22,10 @@ build/
 *.dSYM.zip
 *.dSYM
 exe/
+dmg/
+
+# Docker
+.docker/
+
+# Qoder
+.qoder/

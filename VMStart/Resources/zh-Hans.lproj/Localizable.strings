@@ -314,3 +314,31 @@
 "settings.autoStart" = "登录时自动启动虚拟机";
 "settings.debugMode" = "启用调试模式";
 "settings.experimental" = "启用实验性功能";
+
+/* Welcome View - New */
+"welcome.downloadImage" = "使用浏览器\n下载镜像";
+"welcome.userGuide" = "用户指南";
+"welcome.support" = "支持";
+"welcome.useLinux" = "使用 Linux";
+"welcome.linuxServer" = "服务器版";
+"welcome.linuxDesktop" = "图形界面";
+
+/* Toolbar */
+"toolbar.viewLog" = "查看日志";
+"toolbar.printLog" = "打印日志";
+"toolbar.autoPrint" = "自动打印新日志";
+
+/* Log Panel */
+"logPanel.title" = "VMStart 日志";
+"logPanel.clear" = "清空";
+"logPanel.export" = "导出";
+
+/* Alerts - Printer */
+"alert.noPrinter.title" = "未检测到打印机";
+"alert.noPrinter.message" = "请先连接打印机后再使用打印功能。";
+
+/* Licenses */
+"licenses.title" = "开源许可证";
+"licenses.viewLicenses" = "查看许可证";
+"licenses.engineCount" = "共 %ld 个开源引擎";
+"licenses.allGPLv2" = "所有引擎均采用 GNU GPL 许可证";

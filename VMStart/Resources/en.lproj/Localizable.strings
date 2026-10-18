@@ -314,3 +314,31 @@
 "settings.autoStart" = "Auto-start VMs on login";
 "settings.debugMode" = "Enable debug mode";
 "settings.experimental" = "Enable experimental features";
+
+/* Welcome View - New */
+"welcome.downloadImage" = "Download Image\nvia Browser";
+"welcome.userGuide" = "User Guide";
+"welcome.support" = "Support";
+"welcome.useLinux" = "Use Linux";
+"welcome.linuxServer" = "Server Edition";
+"welcome.linuxDesktop" = "Desktop Edition";
+
+/* Toolbar */
+"toolbar.viewLog" = "View Logs";
+"toolbar.printLog" = "Print Logs";
+"toolbar.autoPrint" = "Auto-print new logs";
+
+/* Log Panel */
+"logPanel.title" = "VMStart Logs";
+"logPanel.clear" = "Clear";
+"logPanel.export" = "Export";
+
+/* Alerts - Printer */
+"alert.noPrinter.title" = "No Printer Detected";
+"alert.noPrinter.message" = "Please connect a printer before using the print function.";
+
+/* Licenses */
+"licenses.title" = "Open Source Licenses";
+"licenses.viewLicenses" = "View Licenses";
+"licenses.engineCount" = "%ld open-source engines";
+"licenses.allGPLv2" = "All engines use GNU GPL licenses";

@@ -57,6 +57,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSArray<NSString *> *)queryCPUsForBinary:(NSString *)binaryName;
 - (NSString *)qemuMajorMinorVersion;
 
+// Multi-version QEMU support
+- (NSArray<NSDictionary *> *)installedQEMUVersions;
+
 @end
 
 NS_ASSUME_NONNULL_END

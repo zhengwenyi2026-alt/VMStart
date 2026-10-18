@@ -21,6 +21,12 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)editVM:(nullable id)sender;
 - (void)startVM:(nullable id)sender;
 
+// 日志与打印
+- (void)showLogPanel;
+- (void)printLogs;
+- (void)appendLog:(NSString *)logEntry;
+- (void)checkPrinterAvailability;
+
 @end
 
 NS_ASSUME_NONNULL_END

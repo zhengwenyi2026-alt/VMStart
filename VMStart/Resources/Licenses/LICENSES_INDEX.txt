@@ -1,0 +1,67 @@
+VMStart - Third-Party Licenses Index
+=====================================
+
+VMStart is licensed under the GNU General Public License Version 2 (GPLv2).
+This project incorporates and interfaces with the following open-source engines,
+each with their own licenses:
+
+┌─────┬──────────────────────┬────────────────────────────────────────────────┐
+│  #  │ Engine               │ License      │ Architecture                     │
+├───────────────────────────┼──────────────┼──────────────────────────────────┤
+│  1  │ QEMU                 │ GPLv2        │ 30 binaries, 29+ CPU archs       │
+│  2  │ Mini vMac            │ GPLv2        │ Motorola 68000                   │
+│  3  │ BasiliskII           │ GPLv2        │ Motorola 68020/030/040           │
+│  4  │ SheepShaver          │ GPLv2        │ PowerPC G3/G4                    │
+│  5  │ DOSBox Staging       │ GPLv2+Zlib   │ x86                              │
+│  6  │ DOSBox-X             │ GPLv2        │ x86                              │
+│  7  │ PCem                 │ GPLv2        │ x86                              │
+│  8  │ 86Box                │ GPLv2        │ x86                              │
+│  9  │ VICE                 │ GPLv2        │ MOS 6502 (Commodore)             │
+│ 10  │ FS-UAE               │ GPLv2        │ Motorola 68000 (Amiga)           │
+│ 11  │ Hatari               │ GPLv2        │ Motorola 68000 (Atari)           │
+│ 12  │ ARAnyM               │ GPLv2        │ Motorola 68000 (Atari)           │
+│ 13  │ OpenMSX              │ GPLv2        │ Z80 (MSX)                        │
+│ 14  │ Fuse                 │ GPLv2        │ Z80 (ZX Spectrum)                │
+│ 15  │ ScummVM              │ GPLv3        │ Multi-platform (adventure games) │
+│ 16  │ Mednafen             │ GPLv2        │ Multi-platform (game consoles)   │
+└─────┴──────────────────────┴──────────────┴──────────────────────────────────┘
+
+License Files:
+  LICENSE-VMStart-GPLv2.txt       - VMStart (this project)
+  LICENSE-QEMU-GPLv2.txt          - QEMU
+  LICENSE-MiniVMac-GPLv2.txt      - Mini vMac
+  LICENSE-BasiliskII-GPLv2.txt    - BasiliskII
+  LICENSE-SheepShaver-GPLv2.txt   - SheepShaver
+  LICENSE-DOSBox-GPLv2.txt        - DOSBox Staging
+  LICENSE-DOSBoxX-GPLv2.txt       - DOSBox-X
+  LICENSE-PCem-GPLv2.txt          - PCem
+  LICENSE-86Box-GPLv2.txt         - 86Box
+  LICENSE-VICE-GPLv2.txt          - VICE
+  LICENSE-FSUAE-GPLv2.txt         - FS-UAE
+  LICENSE-Hatari-GPLv2.txt        - Hatari
+  LICENSE-ARAnyM-GPLv2.txt        - ARAnyM
+  LICENSE-OpenMSX-GPLv2.txt       - OpenMSX
+  LICENSE-Fuse-GPLv2.txt          - Fuse
+  LICENSE-ScummVM-GPLv2.txt       - ScummVM (GPLv3)
+  LICENSE-Mednafen-GPLv2.txt      - Mednafen
+
+Source Repositories:
+  VMStart:     https://github.com/zhengwenyi2026-alt/VMStart
+  QEMU:        https://gitlab.com/qemu-project/qemu
+  Mini vMac:   https://github.com/minivmac/minivmac
+  BasiliskII:  https://github.com/cebix/macemu
+  SheepShaver: https://github.com/cebix/macemu
+  DOSBox:      https://github.com/dosbox-staging/dosbox-staging
+  DOSBox-X:    https://github.com/joncampbell123/dosbox-x
+  PCem:        https://github.com/sarah-walker-pcem/pcem
+  86Box:       https://github.com/86Box/86Box
+  VICE:        https://github.com/VICE-Team/svn-mirror
+  FS-UAE:      https://github.com/FrodeSolheim/fs-uae
+  Hatari:      https://github.com/hatari/hatari
+  ARAnyM:      https://github.com/aranym/aranym
+  OpenMSX:     https://github.com/openMSX/openMSX
+  Fuse:        https://github.com/fuse-emulator/fuse
+  ScummVM:     https://github.com/scummvm/scummvm
+  Mednafen:    https://github.com/libretro-mirrors/mednafen-git
+
+Copyright (c) 2024 zhengwenyi2026-alt. Licensed under GPLv2.

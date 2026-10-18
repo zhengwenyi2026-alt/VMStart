@@ -15,6 +15,7 @@
 #import "VMStartCardView.h"
 #import "VMStartEngineSelector.h"
 #import "VMStartSettingsWindowController.h"
+#import "VMStartBuiltInLinuxManager.h"
 
 @interface VMStartLibraryWindowController () <VMStartConfigDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate, NSMenuDelegate>
 @property (nonatomic, strong) NSTableView *tableView;
@@ -37,6 +38,15 @@
 @property (nonatomic, assign) BOOL showFavoritesOnly;
 @property (nonatomic, strong) NSButton *favoritesButton;
 @property (nonatomic, strong) VMStartNetworkEditorController *networkEditorWC;
+// 日志与打印
+@property (nonatomic, strong) NSWindow *logPanel;
+@property (nonatomic, strong) NSTextView *logTextView;
+@property (nonatomic, strong) NSButton *viewLogButton;
+@property (nonatomic, strong) NSButton *printLogButton;
+@property (nonatomic, strong) NSButton *autoPrintButton;
+@property (nonatomic, assign) BOOL autoPrintEnabled;
+@property (nonatomic, assign) BOOL printerAvailable;
+@property (nonatomic, strong) NSMutableArray<NSString *> *logEntries;
 @end
 
 @implementation VMStartLibraryWindowController
@@ -58,7 +68,11 @@
         _vmDirectory = [self defaultVMDirectory];
         _appMode = VMStartAppModeStandard;
         _showFavoritesOnly = NO;
+        _logEntries = [NSMutableArray array];
+        _autoPrintEnabled = NO;
+        _printerAvailable = NO;
         [self setupContextMenu];
+        [self checkPrinterAvailability];
         [self setupUI];
         [self refreshVMList];
     }
@@ -191,12 +205,50 @@
     settingsBtn.toolTip = AMLocalizedString(@"detail.settings");
     [sidebarToolbar addSubview:settingsBtn];
 
-    // ─── Main content (white background like VMware) ───
+    // ─── Main content (dark background like UTM) ───
     self.mainContentView = [[NSView alloc] initWithFrame:NSMakeRect(sidebarW + 1, 0, root.bounds.size.width - sidebarW - 1, windowH)];
     self.mainContentView.wantsLayer = YES;
-    self.mainContentView.layer.backgroundColor = [NSColor whiteColor].CGColor;
+    self.mainContentView.layer.backgroundColor = [NSColor colorWithRed:0.18 green:0.18 blue:0.20 alpha:1.0].CGColor;
     self.mainContentView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     [root addSubview:self.mainContentView];
+
+    // ─── Top-right toolbar buttons (查看日志 / 打印日志) ───
+    NSView *topToolbar = [[NSView alloc] initWithFrame:NSMakeRect(sidebarW + 1, windowH - 44, root.bounds.size.width - sidebarW - 1, 44)];
+    topToolbar.autoresizingMask = NSViewWidthSizable | NSViewMinYMargin;
+    [root addSubview:topToolbar];
+
+    CGFloat toolbarRightX = root.bounds.size.width - 20;
+
+    // 自动打印按钮
+    self.autoPrintButton = [NSButton buttonWithTitle:@"" target:self action:@selector(toggleAutoPrint:)];
+    self.autoPrintButton.frame = NSMakeRect(toolbarRightX - 110, 10, 28, 24);
+    self.autoPrintButton.bezelStyle = NSBezelStyleInline;
+    self.autoPrintButton.image = [NSImage imageWithSystemSymbolName:@"printer.fill" accessibilityDescription:nil];
+    self.autoPrintButton.imageScaling = NSImageScaleProportionallyDown;
+    self.autoPrintButton.toolTip = AMLocalizedString(@"toolbar.autoPrint");
+    [self.autoPrintButton setContentTintColor:[NSColor colorWithRed:0.5 green:0.5 blue:0.55 alpha:1.0]];
+    self.autoPrintButton.autoresizingMask = NSViewMinXMargin | NSViewMinYMargin;
+    [topToolbar addSubview:self.autoPrintButton];
+
+    // 打印日志按钮（仅当检测到打印机时亮起）
+    self.printLogButton = [NSButton buttonWithTitle:AMLocalizedString(@"toolbar.printLog") target:self action:@selector(printLogs:)];
+    self.printLogButton.frame = NSMakeRect(toolbarRightX - 210, 10, 90, 24);
+    self.printLogButton.bezelStyle = NSBezelStyleRounded;
+    self.printLogButton.font = [NSFont systemFontOfSize:12];
+    self.printLogButton.enabled = self.printerAvailable;
+    self.printLogButton.autoresizingMask = NSViewMinXMargin | NSViewMinYMargin;
+    if (!self.printerAvailable) {
+        [self.printLogButton setContentTintColor:[NSColor colorWithRed:0.4 green:0.4 blue:0.4 alpha:1.0]];
+    }
+    [topToolbar addSubview:self.printLogButton];
+
+    // 查看日志按钮
+    self.viewLogButton = [NSButton buttonWithTitle:AMLocalizedString(@"toolbar.viewLog") target:self action:@selector(showLogPanel:)];
+    self.viewLogButton.frame = NSMakeRect(toolbarRightX - 310, 10, 90, 24);
+    self.viewLogButton.bezelStyle = NSBezelStyleRounded;
+    self.viewLogButton.font = [NSFont systemFontOfSize:12];
+    self.viewLogButton.autoresizingMask = NSViewMinXMargin | NSViewMinYMargin;
+    [topToolbar addSubview:self.viewLogButton];
 
     [self setupWelcomeView];
     [self setupDetailsView];
@@ -212,110 +264,202 @@
     [self updateStatusBar];
 }
 
-#pragma mark - Welcome View (Empty State)
+#pragma mark - Welcome View (UTM Style)
 
 - (void)setupWelcomeView {
     self.welcomeView = [[NSView alloc] initWithFrame:self.mainContentView.bounds];
     self.welcomeView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     self.welcomeView.wantsLayer = YES;
+    self.welcomeView.layer.backgroundColor = [NSColor colorWithRed:0.18 green:0.18 blue:0.20 alpha:1.0].CGColor;
 
-    // ─── Large title "AIRVM" ───
-    NSTextField *bigTitle = [[NSTextField alloc] initWithFrame:NSZeroRect];
-    bigTitle.stringValue = @"AIRVM";
-    bigTitle.font = [NSFont systemFontOfSize:42 weight:NSFontWeightBold];
-    bigTitle.alignment = NSTextAlignmentCenter;
-    bigTitle.textColor = [NSColor colorWithRed:0.25 green:0.25 blue:0.3 alpha:1.0];
-    bigTitle.bezeled = NO; bigTitle.drawsBackground = NO; bigTitle.editable = NO;
-    bigTitle.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.welcomeView addSubview:bigTitle];
+    // ─── Title "欢迎使用 VMStart" ───
+    NSTextField *title = [[NSTextField alloc] initWithFrame:NSZeroRect];
+    title.stringValue = AMLocalizedString(@"welcome_title");
+    title.font = [NSFont systemFontOfSize:20 weight:NSFontWeightMedium];
+    title.alignment = NSTextAlignmentCenter;
+    title.textColor = [NSColor whiteColor];
+    title.bezeled = NO; title.drawsBackground = NO; title.editable = NO;
+    title.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.welcomeView addSubview:title];
 
-    // Subtitle
-    NSTextField *subTitle = [[NSTextField alloc] initWithFrame:NSZeroRect];
-    subTitle.stringValue = AMLocalizedString(@"app_subtitle");
-    subTitle.font = [NSFont systemFontOfSize:13 weight:NSFontWeightLight];
-    subTitle.alignment = NSTextAlignmentCenter;
-    subTitle.textColor = [NSColor colorWithRed:0.55 green:0.55 blue:0.6 alpha:1.0];
-    subTitle.bezeled = NO; subTitle.drawsBackground = NO; subTitle.editable = NO;
-    subTitle.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.welcomeView addSubview:subTitle];
+    // ─── 2x2 Grid of action buttons ───
+    CGFloat btnW = 140;
+    CGFloat btnH = 130;
+    CGFloat gridSpacingX = 16;
+    CGFloat gridSpacingY = 16;
+    CGFloat gridTotalW = btnW * 2 + gridSpacingX;
+    CGFloat gridTotalH = btnH * 2 + gridSpacingY;
+    CGFloat gridStartX = (self.welcomeView.bounds.size.width - gridTotalW) / 2;
+    CGFloat gridStartY = self.welcomeView.bounds.size.height / 2 - gridTotalH / 2 + 30;
 
-    // ─── Three action cards (VMware WS style) - scale with window ───
-    CGFloat cardW = 200;
-    CGFloat cardH = 180;
-    CGFloat spacing = 32;
-    CGFloat totalW = cardW * 3 + spacing * 2;
-    CGFloat startX = (self.welcomeView.bounds.size.width - totalW) / 2;
-    CGFloat cardY = self.welcomeView.bounds.size.height / 2 - cardH / 2 - 20;
-
-    NSArray *cards = @[
-        @{@"icon": @"plus.circle", @"text": AMLocalizedString(@"welcome.createVM"), @"sel": @"addVM:", @"tint": [NSColor colorWithRed:0.35 green:0.55 blue:0.85 alpha:1.0]},
-        @{@"icon": @"folder", @"text": AMLocalizedString(@"welcome.openVM"), @"sel": @"openExistingVM:", @"tint": [NSColor colorWithRed:0.45 green:0.65 blue:0.35 alpha:1.0]},
-        @{@"icon": @"arrow.triangle.2.circlepath", @"text": AMLocalizedString(@"welcome.connectRemote"), @"sel": @"connectRemote:", @"tint": [NSColor colorWithRed:0.65 green:0.45 blue:0.75 alpha:1.0]},
+    // Button definitions: icon, text, selector, hasChromiumIcon
+    NSArray *gridButtons = @[
+        @{@"icon": @"plus.circle", @"text": AMLocalizedString(@"welcome.createVM"), @"sel": @"addVM:", @"chromium": @NO},
+        @{@"icon": @"globe", @"text": AMLocalizedString(@"welcome.downloadImage"), @"sel": @"downloadImage:", @"chromium": @YES},
+        @{@"icon": @"book.circle", @"text": AMLocalizedString(@"welcome.userGuide"), @"sel": @"openUserGuide:", @"chromium": @NO},
+        @{@"icon": @"questionmark.circle", @"text": AMLocalizedString(@"welcome.support"), @"sel": @"openSupport:", @"chromium": @NO},
     ];
 
-    for (NSInteger i = 0; i < cards.count; i++) {
-        CGFloat x = startX + i * (cardW + spacing);
-        NSView *card = [[NSView alloc] initWithFrame:NSMakeRect(x, cardY, cardW, cardH)];
-        card.wantsLayer = YES;
-        card.layer.cornerRadius = 14;
-        card.layer.backgroundColor = [NSColor colorWithRed:0.94 green:0.94 blue:0.96 alpha:1.0].CGColor;
-        card.layer.borderWidth = 1;
-        card.layer.borderColor = [NSColor colorWithRed:0.88 green:0.88 blue:0.9 alpha:1.0].CGColor;
-        card.autoresizingMask = NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin | NSViewMaxYMargin;
+    for (NSInteger i = 0; i < gridButtons.count; i++) {
+        NSInteger row = i / 2;
+        NSInteger col = i % 2;
+        CGFloat x = gridStartX + col * (btnW + gridSpacingX);
+        CGFloat y = gridStartY + (1 - row) * (btnH + gridSpacingY);
 
-        // Icon circle (larger)
-        NSView *iconBg = [[NSView alloc] initWithFrame:NSMakeRect((cardW - 64) / 2, cardH - 85, 64, 64)];
-        iconBg.wantsLayer = YES;
-        iconBg.layer.cornerRadius = 32;
-        iconBg.layer.backgroundColor = [(NSColor *)cards[i][@"tint"] CGColor];
-        [card addSubview:iconBg];
+        NSDictionary *btnDef = gridButtons[i];
+        BOOL useChromium = [btnDef[@"chromium"] boolValue];
 
-        NSImageView *iconView = [[NSImageView alloc] initWithFrame:NSMakeRect(16, 16, 32, 32)];
-        iconView.image = [NSImage imageWithSystemSymbolName:cards[i][@"icon"] accessibilityDescription:nil];
-        iconView.imageScaling = NSImageScaleProportionallyUpOrDown;
-        [iconView setContentTintColor:[NSColor whiteColor]];
-        [iconBg addSubview:iconView];
+        NSView *tile = [[NSView alloc] initWithFrame:NSMakeRect(x, y, btnW, btnH)];
+        tile.wantsLayer = YES;
+        tile.layer.cornerRadius = 12;
+        tile.layer.backgroundColor = [NSColor colorWithRed:0.28 green:0.28 blue:0.30 alpha:1.0].CGColor;
+        tile.layer.borderWidth = 1;
+        tile.layer.borderColor = [NSColor colorWithRed:0.35 green:0.35 blue:0.37 alpha:1.0].CGColor;
+        tile.autoresizingMask = NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin | NSViewMaxYMargin;
 
-        // Text label
-        NSTextField *textLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(12, 16, cardW - 24, 55)];
-        textLabel.stringValue = cards[i][@"text"];
-        textLabel.font = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
-        textLabel.textColor = [NSColor colorWithRed:0.3 green:0.3 blue:0.35 alpha:1.0];
+        // Icon
+        NSImageView *iconView;
+        if (useChromium) {
+            // Use Chromium B&W icon
+            NSString *iconPath = [[NSBundle mainBundle] pathForResource:@"chromium_icon" ofType:@"png"];
+            if (!iconPath) {
+                // Fallback: look in Resources directory
+                NSString *resDir = [[NSBundle mainBundle] resourcePath];
+                iconPath = [resDir stringByAppendingPathComponent:@"chromium_icon.png"];
+            }
+            NSImage *chromiumImg = [[NSImage alloc] initWithContentsOfFile:iconPath];
+            iconView = [[NSImageView alloc] initWithFrame:NSMakeRect((btnW - 48) / 2, btnH - 72, 48, 48)];
+            iconView.image = chromiumImg;
+            iconView.imageScaling = NSImageScaleProportionallyUpOrDown;
+        } else {
+            iconView = [[NSImageView alloc] initWithFrame:NSMakeRect((btnW - 48) / 2, btnH - 72, 48, 48)];
+            iconView.image = [NSImage imageWithSystemSymbolName:btnDef[@"icon"] accessibilityDescription:nil];
+            iconView.imageScaling = NSImageScaleProportionallyUpOrDown;
+            [iconView setContentTintColor:[NSColor whiteColor]];
+        }
+        [tile addSubview:iconView];
+
+        // Text label (white, was red for download button)
+        NSTextField *textLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(10, 12, btnW - 20, 44)];
+        textLabel.stringValue = btnDef[@"text"];
+        textLabel.font = [NSFont systemFontOfSize:12 weight:NSFontWeightMedium];
+        textLabel.textColor = [NSColor whiteColor]; // 红色字改白色
         textLabel.alignment = NSTextAlignmentCenter;
         textLabel.bezeled = NO; textLabel.drawsBackground = NO; textLabel.editable = NO;
         textLabel.lineBreakMode = NSLineBreakByWordWrapping;
-        [card addSubview:textLabel];
+        [tile addSubview:textLabel];
 
-        // Make it clickable (button overlay)
-        NSButton *cardBtn = [NSButton buttonWithTitle:@"" target:self action:NSSelectorFromString(cards[i][@"sel"])];
-        cardBtn.bezelStyle = NSBezelStyleRegularSquare;
-        cardBtn.frame = card.bounds;
-        cardBtn.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-        cardBtn.wantsLayer = YES;
-        cardBtn.layer.backgroundColor = [NSColor clearColor].CGColor;
-        cardBtn.layer.borderWidth = 0;
-        cardBtn.alphaValue = 0.001; // invisible but clickable
-        [card addSubview:cardBtn];
+        // Clickable overlay
+        NSButton *tileBtn = [NSButton buttonWithTitle:@"" target:self action:NSSelectorFromString(btnDef[@"sel"])];
+        tileBtn.bezelStyle = NSBezelStyleRegularSquare;
+        tileBtn.frame = tile.bounds;
+        tileBtn.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        tileBtn.wantsLayer = YES;
+        tileBtn.layer.backgroundColor = [NSColor clearColor].CGColor;
+        tileBtn.alphaValue = 0.001;
+        [tile addSubview:tileBtn];
 
-        [self.welcomeView addSubview:card];
+        [self.welcomeView addSubview:tile];
     }
 
-    // Brand footer
-    NSTextField *brand = [[NSTextField alloc] initWithFrame:NSZeroRect];
-    brand.stringValue = @"VMStart";
-    brand.font = [NSFont systemFontOfSize:11 weight:NSFontWeightLight];
-    brand.textColor = [NSColor colorWithRed:0.7 green:0.7 blue:0.75 alpha:1.0];
-    brand.bezeled = NO; brand.drawsBackground = NO; brand.editable = NO;
-    brand.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.welcomeView addSubview:brand];
+    // ── "使用 Linux" section with two buttons ───
+    CGFloat linuxSectionY = gridStartY - 80;
+    CGFloat linuxBtnW = 140;
+    CGFloat linuxBtnH = 50;
+    CGFloat linuxSpacing = 16;
+    CGFloat linuxTotalW = linuxBtnW * 2 + linuxSpacing;
+    CGFloat linuxStartX = (self.welcomeView.bounds.size.width - linuxTotalW) / 2;
 
+    // "使用 Linux" label
+    NSTextField *linuxLabel = [[NSTextField alloc] initWithFrame:NSZeroRect];
+    linuxLabel.stringValue = AMLocalizedString(@"welcome.useLinux");
+    linuxLabel.font = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
+    linuxLabel.textColor = [NSColor whiteColor];
+    linuxLabel.alignment = NSTextAlignmentCenter;
+    linuxLabel.bezeled = NO; linuxLabel.drawsBackground = NO; linuxLabel.editable = NO;
+    linuxLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.welcomeView addSubview:linuxLabel];
+
+    // 服务器版 button
+    NSView *serverTile = [[NSView alloc] initWithFrame:NSMakeRect(linuxStartX, linuxSectionY, linuxBtnW, linuxBtnH)];
+    serverTile.wantsLayer = YES;
+    serverTile.layer.cornerRadius = 10;
+    serverTile.layer.backgroundColor = [NSColor colorWithRed:0.28 green:0.28 blue:0.30 alpha:1.0].CGColor;
+    serverTile.layer.borderWidth = 1;
+    serverTile.layer.borderColor = [NSColor colorWithRed:0.35 green:0.35 blue:0.37 alpha:1.0].CGColor;
+    serverTile.autoresizingMask = NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin | NSViewMaxYMargin;
+
+    NSImageView *serverIcon = [[NSImageView alloc] initWithFrame:NSMakeRect(12, (linuxBtnH - 24) / 2, 24, 24)];
+    serverIcon.image = [NSImage imageWithSystemSymbolName:@"server.rack" accessibilityDescription:nil];
+    serverIcon.imageScaling = NSImageScaleProportionallyUpOrDown;
+    [serverIcon setContentTintColor:[NSColor whiteColor]];
+    [serverTile addSubview:serverIcon];
+
+    NSTextField *serverText = [[NSTextField alloc] initWithFrame:NSMakeRect(42, (linuxBtnH - 20) / 2, linuxBtnW - 54, 20)];
+    serverText.stringValue = AMLocalizedString(@"welcome.linuxServer");
+    serverText.font = [NSFont systemFontOfSize:12 weight:NSFontWeightMedium];
+    serverText.textColor = [NSColor whiteColor];
+    serverText.bezeled = NO; serverText.drawsBackground = NO; serverText.editable = NO;
+    [serverTile addSubview:serverText];
+
+    NSButton *serverBtn = [NSButton buttonWithTitle:@"" target:self action:@selector(useLinuxServer:)];
+    serverBtn.bezelStyle = NSBezelStyleRegularSquare;
+    serverBtn.frame = serverTile.bounds;
+    serverBtn.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    serverBtn.wantsLayer = YES;
+    serverBtn.layer.backgroundColor = [NSColor clearColor].CGColor;
+    serverBtn.alphaValue = 0.001;
+    [serverTile addSubview:serverBtn];
+    [self.welcomeView addSubview:serverTile];
+
+    // 图形界面 button
+    NSView *desktopTile = [[NSView alloc] initWithFrame:NSMakeRect(linuxStartX + linuxBtnW + linuxSpacing, linuxSectionY, linuxBtnW, linuxBtnH)];
+    desktopTile.wantsLayer = YES;
+    desktopTile.layer.cornerRadius = 10;
+    desktopTile.layer.backgroundColor = [NSColor colorWithRed:0.28 green:0.28 blue:0.30 alpha:1.0].CGColor;
+    desktopTile.layer.borderWidth = 1;
+    desktopTile.layer.borderColor = [NSColor colorWithRed:0.35 green:0.35 blue:0.37 alpha:1.0].CGColor;
+    desktopTile.autoresizingMask = NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin | NSViewMaxYMargin;
+
+    NSImageView *desktopIcon = [[NSImageView alloc] initWithFrame:NSMakeRect(12, (linuxBtnH - 24) / 2, 24, 24)];
+    desktopIcon.image = [NSImage imageWithSystemSymbolName:@"display" accessibilityDescription:nil];
+    desktopIcon.imageScaling = NSImageScaleProportionallyUpOrDown;
+    [desktopIcon setContentTintColor:[NSColor whiteColor]];
+    [desktopTile addSubview:desktopIcon];
+
+    NSTextField *desktopText = [[NSTextField alloc] initWithFrame:NSMakeRect(42, (linuxBtnH - 20) / 2, linuxBtnW - 54, 20)];
+    desktopText.stringValue = AMLocalizedString(@"welcome.linuxDesktop");
+    desktopText.font = [NSFont systemFontOfSize:12 weight:NSFontWeightMedium];
+    desktopText.textColor = [NSColor whiteColor];
+    desktopText.bezeled = NO; desktopText.drawsBackground = NO; desktopText.editable = NO;
+    [desktopTile addSubview:desktopText];
+
+    NSButton *desktopBtn = [NSButton buttonWithTitle:@"" target:self action:@selector(useLinuxDesktop:)];
+    desktopBtn.bezelStyle = NSBezelStyleRegularSquare;
+    desktopBtn.frame = desktopTile.bounds;
+    desktopBtn.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    desktopBtn.wantsLayer = YES;
+    desktopBtn.layer.backgroundColor = [NSColor clearColor].CGColor;
+    desktopBtn.alphaValue = 0.001;
+    [desktopTile addSubview:desktopBtn];
+    [self.welcomeView addSubview:desktopTile];
+
+    // ── "查看许可证" link button ───
+    NSButton *licensesBtn = [NSButton buttonWithTitle:AMLocalizedString(@"licenses.viewLicenses") target:self action:@selector(showLicensesPanel:)];
+    licensesBtn.bezelStyle = NSBezelStyleInline;
+    licensesBtn.font = [NSFont systemFontOfSize:11 weight:NSFontWeightLight];
+    [licensesBtn setContentTintColor:[NSColor colorWithRed:0.5 green:0.7 blue:1.0 alpha:1.0]];
+    licensesBtn.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.welcomeView addSubview:licensesBtn];
+
+    // ─── Constraints ───
     [NSLayoutConstraint activateConstraints:@[
-        [bigTitle.centerXAnchor constraintEqualToAnchor:self.welcomeView.centerXAnchor],
-        [bigTitle.topAnchor constraintEqualToAnchor:self.welcomeView.topAnchor constant:60],
-        [subTitle.centerXAnchor constraintEqualToAnchor:self.welcomeView.centerXAnchor],
-        [subTitle.topAnchor constraintEqualToAnchor:bigTitle.bottomAnchor constant:4],
-        [brand.centerXAnchor constraintEqualToAnchor:self.welcomeView.centerXAnchor],
-        [brand.bottomAnchor constraintEqualToAnchor:self.welcomeView.bottomAnchor constant:-28],
+        [title.centerXAnchor constraintEqualToAnchor:self.welcomeView.centerXAnchor],
+        [title.topAnchor constraintEqualToAnchor:self.welcomeView.topAnchor constant:20],
+        [linuxLabel.centerXAnchor constraintEqualToAnchor:self.welcomeView.centerXAnchor],
+        [linuxLabel.topAnchor constraintEqualToAnchor:title.bottomAnchor constant:gridTotalH + 40],
+        [licensesBtn.centerXAnchor constraintEqualToAnchor:self.welcomeView.centerXAnchor],
+        [licensesBtn.bottomAnchor constraintEqualToAnchor:self.welcomeView.bottomAnchor constant:-20],
     ]];
 
     [self.mainContentView addSubview:self.welcomeView];
@@ -1468,6 +1612,425 @@
     }
     [self.networkEditorWC showWindow:self];
     [self.networkEditorWC.window makeKeyAndOrderFront:self];
+}
+
+#pragma mark - Welcome View Actions
+
+- (void)downloadImage:(id)sender {
+    // 使用系统默认浏览器打开镜像下载页面
+    NSURL *url = [NSURL URLWithString:@"https://cdimage.ubuntu.com/releases/"];
+    if (url) {
+        [[NSWorkspace sharedWorkspace] openURL:url];
+    }
+    [self appendLog:@"[INFO] 打开浏览器下载镜像..."];
+}
+
+- (void)openUserGuide:(id)sender {
+    NSURL *url = [NSURL URLWithString:@"https://docs.getutm.app/basics/basics/"];
+    if (url) {
+        [[NSWorkspace sharedWorkspace] openURL:url];
+    }
+    [self appendLog:@"[INFO] 打开用户指南..."];
+}
+
+- (void)openSupport:(id)sender {
+    NSURL *url = [NSURL URLWithString:@"https://docs.getutm.app/"];
+    if (url) {
+        [[NSWorkspace sharedWorkspace] openURL:url];
+    }
+    [self appendLog:@"[INFO] 打开支持页面..."];
+}
+
+- (void)useLinuxServer:(id)sender {
+    // 使用内置 Linux 管理器启动 Ubuntu Server
+    VMStartBuiltInLinuxManager *linuxManager = [VMStartBuiltInLinuxManager sharedManager];
+    
+    if ([linuxManager isImageReadyForType:VMStartBuiltInLinuxTypeServer]) {
+        [self appendLog:@"[INFO] 正在启动内置 Linux Server..."];
+        [linuxManager launchBuiltInLinux:VMStartBuiltInLinuxTypeServer completion:^(BOOL success, NSError *error) {
+            if (success) {
+                [self appendLog:@"[INFO] Linux Server 已启动"];
+                // 同时创建 VM 条目
+                VMStartVirtualMachine *vm = [VMStartVirtualMachine virtualMachineWithName:@"VMStart Linux Server" architecture:VMStartArchX86_64];
+                vm.osType = VMStartOSUbuntu;
+                vm.memoryValue = 2048;
+                vm.memoryUnit = @"MB";
+                vm.cpuCores = 2;
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self.virtualMachines addObject:vm];
+                    [self.tableView reloadData];
+                    [self updateContentVisibility];
+                });
+            } else {
+                [self appendLog:[NSString stringWithFormat:@"[ERROR] 启动失败：%@", error.localizedDescription]];
+            }
+        }];
+    } else {
+        // 镜像未就绪，创建 VM 条目供手动配置
+        [self appendLog:@"[INFO] 内置镜像未就绪，创建推荐配置虚拟机..."];
+        VMStartVirtualMachine *vm = [VMStartVirtualMachine virtualMachineWithName:@"VMStart Linux Server" architecture:VMStartArchX86_64];
+        vm.osType = VMStartOSUbuntu;
+        vm.memoryValue = 2048;
+        vm.memoryUnit = @"MB";
+        vm.cpuCores = 2;
+        [self.virtualMachines addObject:vm];
+        [self.tableView reloadData];
+        [self updateContentVisibility];
+        [self appendLog:@"[INFO] Linux Server 虚拟机已创建，推荐配置：2GB 内存，2 核心"];
+    }
+}
+
+- (void)useLinuxDesktop:(id)sender {
+    // 使用内置 Linux 管理器启动 Ubuntu Desktop
+    VMStartBuiltInLinuxManager *linuxManager = [VMStartBuiltInLinuxManager sharedManager];
+    
+    if ([linuxManager isImageReadyForType:VMStartBuiltInLinuxTypeDesktop]) {
+        [self appendLog:@"[INFO] 正在启动内置 Linux Desktop..."];
+        [linuxManager launchBuiltInLinux:VMStartBuiltInLinuxTypeDesktop completion:^(BOOL success, NSError *error) {
+            if (success) {
+                [self appendLog:@"[INFO] Linux Desktop 已启动"];
+                // 同时创建 VM 条目
+                VMStartVirtualMachine *vm = [VMStartVirtualMachine virtualMachineWithName:@"VMStart Linux Desktop" architecture:VMStartArchX86_64];
+                vm.osType = VMStartOSUbuntu;
+                vm.memoryValue = 4096;
+                vm.memoryUnit = @"MB";
+                vm.cpuCores = 4;
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self.virtualMachines addObject:vm];
+                    [self.tableView reloadData];
+                    [self updateContentVisibility];
+                });
+            } else {
+                [self appendLog:[NSString stringWithFormat:@"[ERROR] 启动失败：%@", error.localizedDescription]];
+            }
+        }];
+    } else {
+        // 镜像未就绪，创建 VM 条目供手动配置
+        [self appendLog:@"[INFO] 内置镜像未就绪，创建推荐配置虚拟机..."];
+        VMStartVirtualMachine *vm = [VMStartVirtualMachine virtualMachineWithName:@"VMStart Linux Desktop" architecture:VMStartArchX86_64];
+        vm.osType = VMStartOSUbuntu;
+        vm.memoryValue = 4096;
+        vm.memoryUnit = @"MB";
+        vm.cpuCores = 4;
+        [self.virtualMachines addObject:vm];
+        [self.tableView reloadData];
+        [self updateContentVisibility];
+        [self appendLog:@"[INFO] Linux Desktop 虚拟机已创建，推荐配置：4GB 内存，4 核心"];
+    }
+}
+
+#pragma mark - Log & Print
+
+- (void)appendLog:(NSString *)logEntry {
+    NSString *timestamp = [NSDateFormatter localizedStringFromDate:[NSDate date] dateStyle:NSDateFormatterNoStyle timeStyle:NSDateFormatterMediumStyle];
+    NSString *fullEntry = [NSString stringWithFormat:@"[%@] %@", timestamp, logEntry];
+    [self.logEntries addObject:fullEntry];
+
+    // 更新日志文本视图
+    if (self.logTextView) {
+        [self.logTextView.textStorage appendAttributedString:[[NSAttributedString alloc] initWithString:[fullEntry stringByAppendingString:@"\n"] attributes:@{
+            NSFontAttributeName: [NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightRegular],
+            NSForegroundColorAttributeName: [NSColor whiteColor]
+        }]];
+        // 自动滚动到底部
+        [self.logTextView scrollToEndOfDocument:nil];
+    }
+
+    // 自动打印
+    if (self.autoPrintEnabled && self.printerAvailable) {
+        [self printLogs:nil];
+    }
+}
+
+- (void)showLogPanel:(id)sender {
+    if (!self.logPanel) {
+        NSRect panelFrame = NSMakeRect(0, 0, 600, 400);
+        self.logPanel = [[NSWindow alloc] initWithContentRect:panelFrame
+                                                    styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable
+                                                      backing:NSBackingStoreBuffered
+                                                        defer:NO];
+        self.logPanel.title = AMLocalizedString(@"logPanel.title");
+        self.logPanel.minSize = NSMakeSize(400, 250);
+
+        NSView *contentView = self.logPanel.contentView;
+        contentView.wantsLayer = YES;
+        contentView.layer.backgroundColor = [NSColor colorWithRed:0.12 green:0.12 blue:0.14 alpha:1.0].CGColor;
+
+        // 日志文本视图
+        NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, contentView.bounds.size.width, contentView.bounds.size.height - 40)];
+        scrollView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        scrollView.hasVerticalScroller = YES;
+        scrollView.hasHorizontalScroller = YES;
+        scrollView.autohidesScrollers = NO;
+        scrollView.borderType = NSNoBorder;
+
+        self.logTextView = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, scrollView.bounds.size.width, scrollView.bounds.size.height)];
+        self.logTextView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        self.logTextView.backgroundColor = [NSColor colorWithRed:0.12 green:0.12 blue:0.14 alpha:1.0];
+        self.logTextView.textColor = [NSColor whiteColor];
+        self.logTextView.font = [NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightRegular];
+        self.logTextView.editable = NO;
+        self.logTextView.selectable = YES;
+        self.logTextView.verticallyResizable = YES;
+        self.logTextView.horizontallyResizable = YES;
+
+        // 显示已有日志
+        NSMutableAttributedString *fullText = [[NSMutableAttributedString alloc] init];
+        for (NSString *entry in self.logEntries) {
+            [fullText appendAttributedString:[[NSAttributedString alloc] initWithString:[entry stringByAppendingString:@"\n"] attributes:@{
+                NSFontAttributeName: [NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightRegular],
+                NSForegroundColorAttributeName: [NSColor whiteColor]
+            }]];
+        }
+        self.logTextView.textStorage.attributedString = fullText;
+
+        scrollView.documentView = self.logTextView;
+        [contentView addSubview:scrollView];
+
+        // 底部工具栏
+        NSView *bottomBar = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, contentView.bounds.size.width, 40)];
+        bottomBar.autoresizingMask = NSViewWidthSizable | NSViewMaxYMargin;
+        bottomBar.wantsLayer = YES;
+        bottomBar.layer.backgroundColor = [NSColor colorWithRed:0.15 green:0.15 blue:0.17 alpha:1.0].CGColor;
+        [contentView addSubview:bottomBar];
+
+        // 清空按钮
+        NSButton *clearBtn = [NSButton buttonWithTitle:AMLocalizedString(@"logPanel.clear") target:self action:@selector(clearLogs:)];
+        clearBtn.frame = NSMakeRect(12, 8, 70, 24);
+        clearBtn.bezelStyle = NSBezelStyleRounded;
+        [bottomBar addSubview:clearBtn];
+
+        // 导出按钮
+        NSButton *exportBtn = [NSButton buttonWithTitle:AMLocalizedString(@"logPanel.export") target:self action:@selector(exportLogs:)];
+        exportBtn.frame = NSMakeRect(90, 8, 70, 24);
+        exportBtn.bezelStyle = NSBezelStyleRounded;
+        [bottomBar addSubview:exportBtn];
+    }
+
+    [self.logPanel center];
+    [self.logPanel makeKeyAndOrderFront:nil];
+}
+
+- (void)clearLogs:(id)sender {
+    [self.logEntries removeAllObjects];
+    if (self.logTextView) {
+        self.logTextView.string = @"";
+    }
+}
+
+- (void)exportLogs:(id)sender {
+    NSSavePanel *panel = [NSSavePanel savePanel];
+    panel.allowedContentTypes = @[@"public.plain-text"];
+    panel.nameFieldStringValue = @"VMStart-logs.txt";
+    [panel beginSheetModalForWindow:self.logPanel completionHandler:^(NSInteger result) {
+        if (result == NSModalResponseOK && panel.URL) {
+            NSString *logText = [self.logEntries componentsJoinedByString:@"\n"];
+            [logText writeToURL:panel.URL atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        }
+    }];
+}
+
+- (void)printLogs:(id)sender {
+    if (!self.printerAvailable) {
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = AMLocalizedString(@"alert.noPrinter.title");
+        alert.informativeText = AMLocalizedString(@"alert.noPrinter.message");
+        [alert addButtonWithTitle:AMLocalizedString(@"alert.ok")];
+        [alert beginSheetModalForWindow:self.window completionHandler:nil];
+        return;
+    }
+
+    NSPrintInfo *printInfo = [NSPrintInfo sharedPrintInfo];
+    printInfo.horizontalPagination = NSFitPagination;
+    printInfo.verticalPagination = NSAutoPagination;
+
+    // 构建打印内容
+    NSMutableAttributedString *printText = [[NSMutableAttributedString alloc] init];
+    [printText appendAttributedString:[[NSAttributedString alloc] initWithString:@"VMStart 日志\n" attributes:@{
+        NSFontAttributeName: [NSFont boldSystemFontOfSize:16],
+        NSForegroundColorAttributeName: [NSColor blackColor]
+    }]];
+    [printText appendAttributedString:[[NSAttributedString alloc] initWithString:@"========================\n\n" attributes:@{
+        NSFontAttributeName: [NSFont systemFontOfSize:10],
+        NSForegroundColorAttributeName: [NSColor blackColor]
+    }]];
+
+    for (NSString *entry in self.logEntries) {
+        [printText appendAttributedString:[[NSAttributedString alloc] initWithString:[entry stringByAppendingString:@"\n"] attributes:@{
+            NSFontAttributeName: [NSFont monospacedSystemFontOfSize:10 weight:NSFontWeightRegular],
+            NSForegroundColorAttributeName: [NSColor blackColor]
+        }]];
+    }
+
+    NSTextView *printView = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, 500, 800)];
+    printView.textStorage.attributedString = printText;
+    printView.editable = NO;
+
+    NSPrintOperation *printOp = [NSPrintOperation printOperationWithView:printView printInfo:printInfo];
+    printOp.showsPrintPanel = YES;
+    printOp.showsProgressPanel = YES;
+    [printOp runOperation];
+
+    [self appendLog:@"[INFO] 日志已发送到打印机"];
+}
+
+- (void)toggleAutoPrint:(id)sender {
+    self.autoPrintEnabled = !self.autoPrintEnabled;
+    if (self.autoPrintEnabled) {
+        [self.autoPrintButton setContentTintColor:[NSColor colorWithRed:0.25 green:0.7 blue:0.35 alpha:1.0]];
+        [self appendLog:@"[INFO] 自动打印已启用"];
+    } else {
+        [self.autoPrintButton setContentTintColor:[NSColor colorWithRed:0.5 green:0.5 blue:0.55 alpha:1.0]];
+        [self appendLog:@"[INFO] 自动打印已禁用"];
+    }
+}
+
+- (void)checkPrinterAvailability {
+    // 通过 NSPrintInfo 检查打印机
+    NSPrintInfo *printInfo = [NSPrintInfo sharedPrintInfo];
+    NSPrinter *printer = printInfo.printer;
+    self.printerAvailable = (printer != nil && printer.name != nil && printer.name.length > 0);
+
+    // 更新打印按钮状态
+    if (self.printLogButton) {
+        self.printLogButton.enabled = self.printerAvailable;
+        if (self.printerAvailable) {
+            [self.printLogButton setContentTintColor:[NSColor controlAccentColor]];
+        } else {
+            [self.printLogButton setContentTintColor:[NSColor colorWithRed:0.4 green:0.4 blue:0.4 alpha:1.0]];
+        }
+    }
+
+    if (self.printerAvailable) {
+        [self appendLog:[NSString stringWithFormat:@"[INFO] 检测到打印机：%@", printer.name]];
+    } else {
+        [self appendLog:@"[INFO] 未检测到打印机，打印功能不可用"];
+    }
+}
+
+#pragma mark - Licenses Panel
+
+- (void)showLicensesPanel:(id)sender {
+    NSWindow *panel = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 650, 500)
+                                                  styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable
+                                                    backing:NSBackingStoreBuffered
+                                                      defer:NO];
+    panel.title = AMLocalizedString(@"licenses.title");
+    panel.minSize = NSMakeSize(450, 350);
+
+    NSView *contentView = panel.contentView;
+    contentView.wantsLayer = YES;
+    contentView.layer.backgroundColor = [NSColor colorWithRed:0.12 green:0.12 blue:0.14 alpha:1.0].CGColor;
+
+    // Header
+    NSTextField *header = [[NSTextField alloc] initWithFrame:NSMakeRect(20, contentView.bounds.size.height - 50, contentView.bounds.size.width - 40, 30)];
+    header.stringValue = [NSString stringWithFormat:AMLocalizedString(@"licenses.engineCount"), (long)16];
+    header.font = [NSFont systemFontOfSize:16 weight:NSFontWeightBold];
+    header.textColor = [NSColor whiteColor];
+    header.bezeled = NO; header.drawsBackground = NO; header.editable = NO;
+    header.autoresizingMask = NSViewWidthSizable | NSViewMinYMargin;
+    [contentView addSubview:header];
+
+    // License list
+    NSArray *engines = @[
+        @{@"name": @"QEMU", @"ver": @"GPLv2", @"arch": @"30 binaries, 29+ archs"},
+        @{@"name": @"Mini vMac", @"ver": @"GPLv2", @"arch": @"Motorola 68000"},
+        @{@"name": @"BasiliskII", @"ver": @"GPLv2", @"arch": @"Motorola 68020/030/040"},
+        @{@"name": @"SheepShaver", @"ver": @"GPLv2", @"arch": @"PowerPC G3/G4"},
+        @{@"name": @"DOSBox Staging", @"ver": @"GPLv2", @"arch": @"x86"},
+        @{@"name": @"DOSBox-X", @"ver": @"GPLv2", @"arch": @"x86"},
+        @{@"name": @"PCem", @"ver": @"GPLv2", @"arch": @"x86"},
+        @{@"name": @"86Box", @"ver": @"GPLv2", @"arch": @"x86"},
+        @{@"name": @"VICE", @"ver": @"GPLv2", @"arch": @"MOS 6502"},
+        @{@"name": @"FS-UAE", @"ver": @"GPLv2", @"arch": @"Motorola 68000 (Amiga)"},
+        @{@"name": @"Hatari", @"ver": @"GPLv2", @"arch": @"Motorola 68000 (Atari)"},
+        @{@"name": @"ARAnyM", @"ver": @"GPLv2", @"arch": @"Motorola 68000 (Atari)"},
+        @{@"name": @"OpenMSX", @"ver": @"GPLv2", @"arch": @"Z80 (MSX)"},
+        @{@"name": @"Fuse", @"ver": @"GPLv2", @"arch": @"Z80 (ZX Spectrum)"},
+        @{@"name": @"ScummVM", @"ver": @"GPLv3", @"arch": @"Multi-platform"},
+        @{@"name": @"Mednafen", @"ver": @"GPLv2", @"arch": @"Multi-platform"},
+    ];
+
+    NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(10, 50, contentView.bounds.size.width - 20, contentView.bounds.size.height - 110)];
+    scrollView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    scrollView.hasVerticalScroller = YES;
+    scrollView.autohidesScrollers = NO;
+    scrollView.borderType = NSNoBorder;
+
+    CGFloat rowH = 32;
+    NSView *listView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, scrollView.bounds.size.width - 16, engines.count * rowH)];
+    listView.autoresizingMask = NSViewWidthSizable;
+
+    for (NSInteger i = 0; i < engines.count; i++) {
+        NSDictionary *engine = engines[i];
+        CGFloat y = (engines.count - 1 - i) * rowH;
+
+        // Row background (alternating)
+        NSView *row = [[NSView alloc] initWithFrame:NSMakeRect(0, y, listView.bounds.size.width, rowH)];
+        row.wantsLayer = YES;
+        row.layer.backgroundColor = (i % 2 == 0)
+            ? [NSColor colorWithRed:0.16 green:0.16 blue:0.18 alpha:1.0].CGColor
+            : [NSColor colorWithRed:0.13 green:0.13 blue:0.15 alpha:1.0].CGColor;
+        row.autoresizingMask = NSViewWidthSizable;
+        [listView addSubview:row];
+
+        // Index
+        NSTextField *idx = [[NSTextField alloc] initWithFrame:NSMakeRect(12, 6, 24, 20)];
+        idx.stringValue = [NSString stringWithFormat:@"%ld", (long)(i + 1)];
+        idx.font = [NSFont systemFontOfSize:11 weight:NSFontWeightMedium];
+        idx.textColor = [NSColor colorWithRed:0.5 green:0.5 blue:0.55 alpha:1.0];
+        idx.bezeled = NO; idx.drawsBackground = NO; idx.editable = NO;
+        [row addSubview:idx];
+
+        // Engine name
+        NSTextField *name = [[NSTextField alloc] initWithFrame:NSMakeRect(40, 6, 130, 20)];
+        name.stringValue = engine[@"name"];
+        name.font = [NSFont systemFontOfSize:12 weight:NSFontWeightMedium];
+        name.textColor = [NSColor whiteColor];
+        name.bezeled = NO; name.drawsBackground = NO; name.editable = NO;
+        [row addSubview:name];
+
+        // License badge
+        NSTextField *badge = [[NSTextField alloc] initWithFrame:NSMakeRect(175, 6, 50, 20)];
+        badge.stringValue = engine[@"ver"];
+        badge.font = [NSFont monospacedDigitSystemFontOfSize:10 weight:NSFontWeightMedium];
+        badge.textColor = [NSColor whiteColor];
+        badge.bezeled = NO; badge.editable = NO;
+        badge.wantsLayer = YES;
+        badge.layer.backgroundColor = [NSColor colorWithRed:0.25 green:0.55 blue:0.35 alpha:1.0].CGColor;
+        badge.layer.cornerRadius = 8;
+        badge.drawsBackground = YES;
+        badge.backgroundColor = [NSColor colorWithRed:0.25 green:0.55 blue:0.35 alpha:1.0];
+        badge.alignment = NSTextAlignmentCenter;
+        [row addSubview:badge];
+
+        // Architecture
+        NSTextField *arch = [[NSTextField alloc] initWithFrame:NSMakeRect(235, 6, listView.bounds.size.width - 245, 20)];
+        arch.stringValue = engine[@"arch"];
+        arch.font = [NSFont systemFontOfSize:11];
+        arch.textColor = [NSColor colorWithRed:0.6 green:0.6 blue:0.65 alpha:1.0];
+        arch.bezeled = NO; arch.drawsBackground = NO; arch.editable = NO;
+        arch.autoresizingMask = NSViewWidthSizable;
+        [row addSubview:arch];
+    }
+
+    scrollView.documentView = listView;
+    [contentView addSubview:scrollView];
+
+    // Footer
+    NSTextField *footer = [[NSTextField alloc] initWithFrame:NSMakeRect(20, 14, contentView.bounds.size.width - 40, 20)];
+    footer.stringValue = AMLocalizedString(@"licenses.allGPLv2");
+    footer.font = [NSFont systemFontOfSize:10 weight:NSFontWeightLight];
+    footer.textColor = [NSColor colorWithRed:0.5 green:0.5 blue:0.55 alpha:1.0];
+    footer.alignment = NSTextAlignmentCenter;
+    footer.bezeled = NO; footer.drawsBackground = NO; footer.editable = NO;
+    footer.autoresizingMask = NSViewWidthSizable | NSViewMaxYMargin;
+    [contentView addSubview:footer];
+
+    [panel center];
+    [panel makeKeyAndOrderFront:nil];
+
+    [self appendLog:@"[INFO] 打开许可证面板"];
 }
 
 @end

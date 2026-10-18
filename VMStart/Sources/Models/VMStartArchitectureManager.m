@@ -467,6 +467,56 @@
     return found;
 }
 
+// 获取所有已安装的 QEMU 版本（支持多版本并存）
+- (NSArray<NSDictionary *> *)installedQEMUVersions {
+    NSMutableArray *versions = [NSMutableArray array];
+    NSArray *searchPaths = @[@"/opt/homebrew/bin", @"/usr/local/bin", @"/usr/bin"];
+    NSFileManager *fm = [NSFileManager defaultManager];
+
+    for (NSString *searchPath in searchPaths) {
+        NSArray *files = [fm contentsOfDirectoryAtPath:searchPath error:nil];
+        NSMutableSet *binaries = [NSMutableSet set];
+        for (NSString *file in files) {
+            if ([file hasPrefix:@"qemu-system-"]) {
+                [binaries addObject:file];
+            }
+        }
+        if (binaries.count > 0) {
+            // 获取该路径下 QEMU 的版本号
+            NSString *sampleBinary = [searchPath stringByAppendingPathComponent:@"qemu-system-x86_64"];
+            if (![fm fileExistsAtPath:sampleBinary]) {
+                sampleBinary = [searchPath stringByAppendingPathComponent:[binaries anyObject]];
+            }
+            if ([fm fileExistsAtPath:sampleBinary]) {
+                NSTask *task = [[NSTask alloc] init];
+                task.executableURL = [NSURL fileURLWithPath:sampleBinary];
+                task.arguments = @[@"--version"];
+                NSPipe *pipe = [NSPipe pipe];
+                task.standardOutput = pipe;
+                @try {
+                    [task launch];
+                    [task waitUntilExit];
+                } @catch (NSException *e) {
+                    continue;
+                }
+                NSData *data = [[pipe fileHandleForReading] readDataToEndOfFile];
+                NSString *output = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] ?: @"";
+                NSRegularExpression *re = [NSRegularExpression regularExpressionWithPattern:@"(\\d+\\.\\d+\\.?\\d*)" options:0 error:nil];
+                NSTextCheckingResult *match = [re firstMatchInString:output options:0 range:NSMakeRange(0, output.length)];
+                NSString *version = match ? [output substringWithRange:match.range] : @"unknown";
+
+                [versions addObject:@{
+                    @"path": searchPath,
+                    @"version": version,
+                    @"binaries": [binaries allObjects],
+                    @"binaryCount": @(binaries.count)
+                }];
+            }
+        }
+    }
+    return versions;
+}
+
 - (NSString *)qemuVersionString {
     NSTask *task = [[NSTask alloc] init];
     NSString *binary = [self pathForQEMUBinary:@"qemu-system-x86_64"];
@@ -586,11 +636,39 @@
 }
 
 - (void)refreshDynamicData {
+    // 获取已安装的 QEMU 主版本号
+    NSString *versionStr = [self qemuMajorMinorVersion];
+    NSArray *verParts = [versionStr componentsSeparatedByString:@"."];
+    NSInteger majorVer = verParts.count > 0 ? [verParts[0] integerValue] : 0;
+    NSInteger minorVer = verParts.count > 1 ? [verParts[1] integerValue] : 0;
+    NSInteger installedVersion = majorVer * 100 + minorVer; // e.g. 10.1 -> 1001
+
     for (VMStartArchitectureProfile *profile in self.profiles) {
         NSString *binary = profile.qemuBinary;
         if ([self pathForQEMUBinary:binary]) {
             profile.dynamicMachines = [self queryMachinesForBinary:binary];
             profile.dynamicCPUs = [self queryCPUsForBinary:binary];
+
+            // 版本感知过滤：根据安装的 QEMU 版本过滤静态机器列表
+            NSMutableArray *filteredMachines = [NSMutableArray array];
+            for (NSString *machine in profile.supportedMachines) {
+                // 解析版本化机器名 (如 pc-q35-10.1, pseries-9.0, virt-8.2)
+                NSRegularExpression *re = [NSRegularExpression regularExpressionWithPattern:@"-(\\d+)\\.(\\d+)$" options:0 error:nil];
+                NSTextCheckingResult *match = [re firstMatchInString:machine options:0 range:NSMakeRange(0, machine.length)];
+                if (match) {
+                    NSInteger mMajor = [[machine substringWithRange:[match rangeAtIndex:1]] integerValue];
+                    NSInteger mMinor = [[machine substringWithRange:[match rangeAtIndex:2]] integerValue];
+                    NSInteger machineVersion = mMajor * 100 + mMinor;
+                    // 只保留 <= 已安装版本的机器类型
+                    if (machineVersion <= installedVersion) {
+                        [filteredMachines addObject:machine];
+                    }
+                } else {
+                    // 非版本化机器名始终保留
+                    [filteredMachines addObject:machine];
+                }
+            }
+            profile.supportedMachines = filteredMachines;
         }
     }
 }

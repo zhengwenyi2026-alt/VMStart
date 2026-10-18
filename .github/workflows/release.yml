@@ -4,13 +4,25 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: write
 
+env:
+  VERSION: ${{ github.ref_name || '1.0.0' }}
+
 jobs:
-  build:
+  # ═══════════════════════════════════════════════════
+  # macOS Apple Silicon (arm64) DMG
+  # ═══════════════════════════════════════════════════
+  build-macos-arm64:
+    name: "macOS DMG (Apple Silicon arm64)"
     runs-on: macos-15
     steps:
       - name: Checkout
@@ -28,7 +40,7 @@ jobs:
       - name: Generate Xcode Project
         run: xcodegen generate --spec project.yml
 
-      - name: Build VMStart
+      - name: Build VMStart (arm64)
         run: |
           xcodebuild -project VMStart.xcodeproj \
             -scheme VMStart \
@@ -37,75 +49,42 @@ jobs:
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             ONLY_ACTIVE_ARCH=NO \
+            ARCHS=arm64 \
             clean build
 
-      - name: Package DMG
+      - name: Package DMG (arm64)
         run: |
-          mkdir -p dmg
+          mkdir -p dmg/apple_silicon
           APP_PATH=$(find build/DerivedData/Build/Products/Release -name "VMStart.app" -maxdepth 1 | head -1)
           DMG_TEMP=$(mktemp -d)
           cp -R "$APP_PATH" "$DMG_TEMP/"
           
-          # Copy QEMU binaries into app bundle
+          # Copy QEMU arm64 binaries
           ENGINES_DIR="$DMG_TEMP/VMStart.app/Contents/MacOS/engines"
           mkdir -p "$ENGINES_DIR"
-          cp /opt/homebrew/bin/qemu-system-* "$ENGINES_DIR/"
-          cp /opt/homebrew/bin/qemu-img "$ENGINES_DIR/"
-          chmod +x "$ENGINES_DIR/"*
+          cp /opt/homebrew/bin/qemu-system-* "$ENGINES_DIR/" 2>/dev/null || true
+          cp /opt/homebrew/bin/qemu-img "$ENGINES_DIR/" 2>/dev/null || true
+          chmod +x "$ENGINES_DIR/"* 2>/dev/null || true
           
           ln -s /Applications "$DMG_TEMP/Applications"
-          VERSION=${GITHUB_REF_NAME:-1.0.0}
           hdiutil create -volname "VMStart" \
             -srcfolder "$DMG_TEMP" \
             -ov -format UDZO \
-            "dmg/VMStart-${VERSION}.dmg"
+            "dmg/apple_silicon/VMStart-${{ env.VERSION }}-arm64.dmg"
           rm -rf "$DMG_TEMP"
 
       - name: Upload DMG Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VMStart-DMG
-          path: dmg/VMStart-*.dmg
+          name: VMStart-macOS-arm64
+          path: dmg/apple_silicon/VMStart-*-arm64.dmg
+          retention-days: 30
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            dmg/VMStart-*.dmg
-          name: "VMStart ${{ github.ref_name }}"
-          body: |
-            ## VMStart ${{ github.ref_name }}
-            
-            ### Downloads
-            - **macOS (Apple Silicon)**: VMStart-${{ github.ref_name }}.dmg
-            - **macOS (Intel)**: VMStart-${{ github.ref_name }}-Intel.dmg
-            - **Windows (x86_64)**: VMStart.exe
-            
-            ### What's New
-            - QEMU-based virtual machine manager for macOS and Windows
-            - Support for 29+ architectures (8-bit AVR to 64-bit x86_64)
-            - Native macOS app with Objective-C/Swift frontend
-            - Virtual machine library management
-            - Built-in console with QEMU monitor access
-            - QEMU engine included (no need to install separately)
-            
-            ### Requirements
-            - macOS 14.0 or later (Apple Silicon or Intel)
-            - Windows 10/11 (64-bit)
-            
-            ### Installation
-            1. Download the appropriate file for your platform
-            2. macOS: Drag VMStart.app to Applications
-            3. Windows: Run VMStart.exe
-            4. Launch VMStart (QEMU is included on macOS)
-            
-            ### License
-            GPLv2 - See LICENSE file
-          draft: false
-          prerelease: false
-
-  build-intel:
+  # ═══════════════════════════════════════════════════
+  # macOS Intel (x86_64) DMG
+  # ═══════════════════════════════════════════════════
+  build-macos-x86_64:
+    name: "macOS DMG (Intel x86_64)"
     runs-on: macos-13
     steps:
       - name: Checkout
@@ -123,7 +102,7 @@ jobs:
       - name: Generate Xcode Project
         run: xcodegen generate --spec project.yml
 
-      - name: Build VMStart (Intel)
+      - name: Build VMStart (x86_64)
         run: |
           xcodebuild -project VMStart.xcodeproj \
             -scheme VMStart \
@@ -135,35 +114,39 @@ jobs:
             ARCHS=x86_64 \
             clean build
 
-      - name: Package DMG (Intel)
+      - name: Package DMG (x86_64)
         run: |
-          mkdir -p dmg
+          mkdir -p dmg/x86_64
           APP_PATH=$(find build/DerivedData/Build/Products/Release -name "VMStart.app" -maxdepth 1 | head -1)
           DMG_TEMP=$(mktemp -d)
           cp -R "$APP_PATH" "$DMG_TEMP/"
           
-          # Copy QEMU binaries into app bundle
+          # Copy QEMU x86_64 binaries
           ENGINES_DIR="$DMG_TEMP/VMStart.app/Contents/MacOS/engines"
           mkdir -p "$ENGINES_DIR"
-          cp /usr/local/bin/qemu-system-* "$ENGINES_DIR/"
-          cp /usr/local/bin/qemu-img "$ENGINES_DIR/"
-          chmod +x "$ENGINES_DIR/"*
+          cp /usr/local/bin/qemu-system-* "$ENGINES_DIR/" 2>/dev/null || true
+          cp /usr/local/bin/qemu-img "$ENGINES_DIR/" 2>/dev/null || true
+          chmod +x "$ENGINES_DIR/"* 2>/dev/null || true
           
           ln -s /Applications "$DMG_TEMP/Applications"
-          VERSION=${GITHUB_REF_NAME:-1.0.0}
           hdiutil create -volname "VMStart" \
             -srcfolder "$DMG_TEMP" \
             -ov -format UDZO \
-            "dmg/VMStart-${VERSION}-Intel.dmg"
+            "dmg/x86_64/VMStart-${{ env.VERSION }}-x86_64.dmg"
           rm -rf "$DMG_TEMP"
 
-      - name: Upload DMG Artifact (Intel)
+      - name: Upload DMG Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VMStart-DMG-Intel
-          path: dmg/VMStart-*-Intel.dmg
+          name: VMStart-macOS-x86_64
+          path: dmg/x86_64/VMStart-*-x86_64.dmg
+          retention-days: 30
 
-  build-windows:
+  # ═══════════════════════════════════════════════════
+  # Windows x86_64 EXE (Docker)
+  # ═══════════════════════════════════════════════════
+  build-windows-x86_64:
+    name: "Windows EXE (x86_64)"
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -175,17 +158,33 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Build Windows x64 EXE
+        shell: pwsh
         run: |
           cd VMStart-Windows/VMStart
-          dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ../../publish-x64
+          dotnet publish -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:DebugType=None `
+            -o ../../publish-x64
 
-      - name: Upload x64 EXE Artifact
+      - name: Rename EXE
+        shell: pwsh
+        run: |
+          mkdir -p exe/x86_64
+          Copy-Item publish-x64/VMStart.exe exe/x86_64/VMStart-${{ env.VERSION }}-x86_64.exe
+
+      - name: Upload EXE Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VMStart-Windows-x64
-          path: publish-x64/VMStart.exe
+          name: VMStart-Windows-x86_64
+          path: exe/x86_64/VMStart-*-x86_64.exe
+          retention-days: 30
 
-  build-windows-arm:
+  # ═══════════════════════════════════════════════════
+  # Windows ARM64 EXE (Docker)
+  # ═══════════════════════════════════════════════════
+  build-windows-arm64:
+    name: "Windows EXE (ARM64)"
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -197,41 +196,76 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Build Windows ARM64 EXE
+        shell: pwsh
         run: |
           cd VMStart-Windows/VMStart
-          dotnet publish -c Release -r win-arm64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ../../publish-arm64
+          dotnet publish -c Release -r win-arm64 --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:DebugType=None `
+            -o ../../publish-arm64
 
-      - name: Upload ARM64 EXE Artifact
+      - name: Rename EXE
+        shell: pwsh
+        run: |
+          mkdir -p exe/arm64
+          Copy-Item publish-arm64/VMStart.exe exe/arm64/VMStart-${{ env.VERSION }}-arm64.exe
+
+      - name: Upload EXE Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VMStart-Windows-ARM64
-          path: publish-arm64/VMStart.exe
+          name: VMStart-Windows-arm64
+          path: exe/arm64/VMStart-*-arm64.exe
+          retention-days: 30
 
-      - name: Create Windows Release
+  # ═══════════════════════════════════════════════════
+  # Release (only on tags)
+  # ═══════════════════════════════════════════════════
+  release:
+    name: "Create Release"
+    needs: [build-macos-arm64, build-macos-x86_64, build-windows-x86_64, build-windows-arm64]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Display structure
+        run: find artifacts/ -type f
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            publish-x64/VMStart.exe
-            publish-arm64/VMStart.exe
+            artifacts/**/*
           name: "VMStart ${{ github.ref_name }}"
           body: |
-            ## VMStart ${{ github.ref_name }} - Windows
+            ## VMStart ${{ github.ref_name }}
             
             ### Downloads
-            - **Windows x64**: VMStart-x64.exe
-            - **Windows ARM64**: VMStart-arm64.exe
             
-            ### Installation
-            1. Download the appropriate EXE for your architecture
-            2. Run the executable
-            3. Follow the setup wizard
+            | Platform | Architecture | File |
+            |----------|-------------|------|
+            | macOS (Apple Silicon) | arm64 | VMStart-${{ github.ref_name }}-arm64.dmg |
+            | macOS (Intel) | x86_64 | VMStart-${{ github.ref_name }}-x86_64.dmg |
+            | Windows | x86_64 | VMStart-${{ github.ref_name }}-x86_64.exe |
+            | Windows | arm64 | VMStart-${{ github.ref_name }}-arm64.exe |
+            
+            ### Features
+            - 16 emulation engines (QEMU + retro consoles)
+            - 33 CPU architectures supported
+            - Built-in Linux (Ubuntu Server & Desktop)
+            - Chromium browser for ISO downloads
+            - Log viewer & printer support
+            - All engines GPLv2 licensed
             
             ### Requirements
+            - macOS 14.0+ (Apple Silicon or Intel)
             - Windows 10/11 (64-bit)
-            - .NET 8.0 Runtime (included in self-contained build)
             
             ### License
-            GPLv2 - See LICENSE file
+            GPLv2
           draft: false
           prerelease: false

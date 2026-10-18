@@ -15,5 +15,6 @@
 #import "VMStartLibraryWindowController.h"
 #import "VMStartConfigWindowController.h"
 #import "VMStartConsoleWindowController.h"
+#import "VMStartBuiltInLinuxManager.h"
 
 #endif /* VMStart_Bridging_Header_h */
