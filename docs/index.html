@@ -3,83 +3,344 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VMStart - Virtual Machine Manager</title>
+    <title>VMStart - Multi-Engine Virtual Machine Manager</title>
+    <meta name="description" content="VMStart is a free, open-source multi-engine virtual machine manager supporting 16 engines and 33+ CPU architectures.">
+    <meta name="keywords" content="VMStart, virtual machine, emulator, QEMU, macOS, Windows, open source, GPLv2">
+    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <nav>
-        <div class="container">
-            <div class="logo">VMStart</div>
-            <div class="lang-switch">
-                <button onclick="setLang('zh')" class="lang-btn active" id="btn-zh">中文</button>
-                <button onclick="setLang('en')" class="lang-btn" id="btn-en">English</button>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="#" class="logo">
+                <span class="logo-icon"></span>
+                <span class="logo-text">VMStart</span>
+            </a>
+            <div class="nav-links">
+                <a href="#features" data-zh="特性" data-en="Features">特性</a>
+                <a href="#engines" data-zh="引擎" data-en="Engines">引擎</a>
+                <a href="#download" data-zh="下载" data-en="Download">下载</a>
+                <a href="#docs" data-zh="文档" data-en="Docs">文档</a>
+                <a href="https://github.com/zhengwenyi2026-alt/VMStart" target="_blank" class="github-nav">GitHub</a>
+                <button class="lang-toggle" onclick="toggleLang()">
+                    <span id="lang-label">EN</span>
+                </button>
             </div>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()"></button>
         </div>
     </nav>
 
-    <header class="hero">
-        <div class="container">
-            <h1 data-zh="多引擎虚拟机管理器" data-en="Multi-Engine Virtual Machine Manager">多引擎虚拟机管理器</h1>
-            <p data-zh="支持 29+ 架构，从 8 位复古计算机到 64 位现代系统" data-en="Support 29+ architectures, from 8-bit retro computers to 64-bit modern systems">支持 29+ 架构，从 8 位复古计算机到 64 位现代系统</p>
-            <div class="download-buttons">
-                <a href="https://github.com/zhengwenyi2026-alt/VMStart/releases/latest/download/VMStart-1.0.0.dmg" class="btn btn-primary" data-zh="下载 macOS 版 (Apple Silicon)" data-en="Download for macOS (Apple Silicon)">下载 macOS 版 (Apple Silicon)</a>
-                <a href="https://github.com/zhengwenyi2026-alt/VMStart/releases/latest/download/VMStart-1.0.0-Intel.dmg" class="btn btn-secondary" data-zh="下载 macOS 版 (Intel)" data-en="Download for macOS (Intel)">下载 macOS 版 (Intel)</a>
-                <a href="https://github.com/zhengwenyi2026-alt/VMStart/releases/latest/download/VMStart-x64.exe" class="btn btn-secondary" data-zh="下载 Windows 版 (x64)" data-en="Download for Windows (x64)">下载 Windows 版 (x64)</a>
-                <a href="https://github.com/zhengwenyi2026-alt/VMStart/releases/latest/download/VMStart-arm64.exe" class="btn btn-secondary" data-zh="下载 Windows 版 (ARM64)" data-en="Download for Windows (ARM64)">下载 Windows 版 (ARM64)</a>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg"></div>
+        <div class="container hero-content">
+            <div class="hero-badge" data-zh="开源免费 · GPLv2" data-en="Free & Open Source · GPLv2">开源免费 · GPLv2</div>
+            <h1>
+                <span data-zh="多引擎" data-en="Multi-Engine">多引擎</span>
+                <span class="gradient-text" data-zh="虚拟机管理器" data-en="VM Manager">虚拟机管理器</span>
+            </h1>
+            <p class="hero-subtitle" data-zh="16 个仿真引擎 · 33+ CPU 架构 · macOS & Windows 原生支持" data-en="16 emulation engines · 33+ CPU architectures · Native macOS & Windows">16 个仿真引擎 · 33+ CPU 架构 · macOS & Windows 原生支持</p>
+            <div class="hero-buttons">
+                <a href="#download" class="btn btn-primary btn-lg">
+                    <span data-zh="立即下载" data-en="Download Now">立即下载</span>
+                </a>
+                <a href="https://github.com/zhengwenyi2026-alt/VMStart" target="_blank" class="btn btn-outline btn-lg">
+                    <span data-zh="查看源码" data-en="View Source">查看源码</span>
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-number">16</span>
+                    <span class="stat-label" data-zh="引擎" data-en="Engines">引擎</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">33+</span>
+                    <span class="stat-label" data-zh="架构" data-en="Architectures">架构</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">4</span>
+                    <span class="stat-label" data-zh="平台版本" data-en="Platforms">平台版本</span>
+                </div>
             </div>
         </div>
-    </header>
+    </section>
 
-    <section class="features">
+    <!-- Features Section -->
+    <section id="features" class="features">
         <div class="container">
-            <h2 data-zh="特性" data-en="Features">特性</h2>
+            <h2 class="section-title" data-zh="核心特性" data-en="Core Features">核心特性</h2>
+            <p class="section-subtitle" data-zh="为开发者和复古计算爱好者打造的专业工具" data-en="Professional tools for developers and retro computing enthusiasts">为开发者和复古计算爱好者打造的专业工具</p>
             <div class="feature-grid">
                 <div class="feature-card">
-                    <h3 data-zh="多引擎支持" data-en="Multi-Engine">多引擎支持</h3>
-                    <p data-zh="QEMU、Mini vMac、BasiliskII 等 29+ 引擎" data-en="QEMU, Mini vMac, BasiliskII and 29+ engines">QEMU、Mini vMac、BasiliskII 等 29+ 引擎</p>
+                    <div class="feature-icon">🔧</div>
+                    <h3 data-zh="多引擎架构" data-en="Multi-Engine">多引擎架构</h3>
+                    <p data-zh="集成 QEMU、Mini vMac、BasiliskII、DOSBox 等 16 个引擎，覆盖从 8 位到 64 位的全部计算平台" data-en="16 engines including QEMU, Mini vMac, BasiliskII, DOSBox — covering all computing platforms from 8-bit to 64-bit">集成 QEMU、Mini vMac、BasiliskII、DOSBox 等 16 个引擎，覆盖从 8 位到 64 位的全部计算平台</p>
                 </div>
                 <div class="feature-card">
-                    <h3 data-zh="跨平台" data-en="Cross-Platform">跨平台</h3>
-                    <p data-zh="支持 macOS 和 Windows" data-en="Available on macOS and Windows">支持 macOS 和 Windows</p>
+                    <div class="feature-icon"></div>
+                    <h3 data-zh="硬件加速" data-en="Hardware Acceleration">硬件加速</h3>
+                    <p data-zh="macOS HVF 硬件虚拟化加速，QEMU 全版本自适应，性能接近原生" data-en="macOS HVF hardware virtualization, QEMU version-aware adaptation, near-native performance">macOS HVF 硬件虚拟化加速，QEMU 全版本自适应，性能接近原生</p>
                 </div>
                 <div class="feature-card">
-                    <h3 data-zh="开源免费" data-en="Open Source">开源免费</h3>
-                    <p data-zh="GPLv2 许可证，完全免费" data-en="GPLv2 license, completely free">GPLv2 许可证，完全免费</p>
+                    <div class="feature-icon"></div>
+                    <h3 data-zh="内置 Linux" data-en="Built-in Linux">内置 Linux</h3>
+                    <p data-zh="预安装 Ubuntu Server 和 Desktop，一键启动，已去除所有商标" data-en="Pre-installed Ubuntu Server & Desktop, one-click launch, all trademarks removed">预安装 Ubuntu Server 和 Desktop，一键启动，已去除所有商标</p>
                 </div>
                 <div class="feature-card">
-                    <h3 data-zh="多架构" data-en="Multi-Arch">多架构</h3>
-                    <p data-zh="x86_64 和 ARM64 原生支持" data-en="Native x86_64 and ARM64 support">x86_64 和 ARM64 原生支持</p>
+                    <div class="feature-icon">🌐</div>
+                    <h3 data-zh="内置浏览器" data-en="Built-in Browser">内置浏览器</h3>
+                    <p data-zh="集成 Chromium 浏览器，方便下载 ISO 镜像和在线搜索" data-en="Integrated Chromium browser for ISO downloads and web browsing">集成 Chromium 浏览器，方便下载 ISO 镜像和在线搜索</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🖨️</div>
+                    <h3 data-zh="日志与打印" data-en="Logs & Printing">日志与打印</h3>
+                    <p data-zh="实时日志查看、导出和打印功能，支持自动打印新日志" data-en="Real-time log viewer, export and print, with auto-print for new entries">实时日志查看、导出和打印功能，支持自动打印新日志</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔓</div>
+                    <h3 data-zh="完全开源" data-en="Fully Open Source">完全开源</h3>
+                    <p data-zh="GPLv2 许可证，所有引擎源代码均可获取，透明可审计" data-en="GPLv2 license, all engine source code available, transparent and auditable">GPLv2 许可证，所有引擎源代码均可获取，透明可审计</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="docs">
+    <!-- Engines Section -->
+    <section id="engines" class="engines">
         <div class="container">
-            <h2 data-zh="快速开始" data-en="Quick Start">快速开始</h2>
-            <div class="doc-content">
-                <h3 data-zh="macOS 安装" data-en="macOS Installation">macOS 安装</h3>
-                <ol>
-                    <li data-zh="下载 DMG 文件" data-en="Download the DMG file">下载 DMG 文件</li>
-                    <li data-zh="打开 DMG，将 VMStart.app 拖入应用程序文件夹" data-en="Open DMG, drag VMStart.app to Applications">打开 DMG，将 VMStart.app 拖入应用程序文件夹</li>
-                    <li data-zh="安装 QEMU: <code>brew install qemu</code>" data-en="Install QEMU: <code>brew install qemu</code>">安装 QEMU: <code>brew install qemu</code></li>
-                    <li data-zh="启动 VMStart" data-en="Launch VMStart">启动 VMStart</li>
-                </ol>
-
-                <h3 data-zh="Windows 安装" data-en="Windows Installation">Windows 安装</h3>
-                <ol>
-                    <li data-zh="下载对应架构的 EXE 文件 (x86_64 或 ARM64)" data-en="Download EXE for your architecture (x86_64 or ARM64)">下载对应架构的 EXE 文件 (x86_64 或 ARM64)</li>
-                    <li data-zh="运行 VMStart.exe" data-en="Run VMStart.exe">运行 VMStart.exe</li>
-                    <li data-zh="按照向导配置虚拟机" data-en="Follow the wizard to configure VM">按照向导配置虚拟机</li>
-                </ol>
+            <h2 class="section-title" data-zh="支持的引擎" data-en="Supported Engines">支持的引擎</h2>
+            <p class="section-subtitle" data-zh="16 个开源引擎，覆盖全部计算时代" data-en="16 open-source engines covering all computing eras">16 个开源引擎，覆盖全部计算时代</p>
+            <div class="engine-grid">
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>QEMU</h4>
+                    <p data-zh="30 个二进制 · 29+ 架构" data-en="30 binaries · 29+ archs">30 个二进制 · 29+ 架构</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>Mini vMac</h4>
+                    <p data-zh="Motorola 68000" data-en="Motorola 68000">Motorola 68000</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>BasiliskII</h4>
+                    <p data-zh="68020/030/040" data-en="68020/030/040">68020/030/040</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>SheepShaver</h4>
+                    <p data-zh="PowerPC G3/G4" data-en="PowerPC G3/G4">PowerPC G3/G4</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>DOSBox Staging</h4>
+                    <p data-zh="x86 DOS" data-en="x86 DOS">x86 DOS</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>DOSBox-X</h4>
+                    <p data-zh="x86 增强版" data-en="x86 Enhanced">x86 增强版</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>PCem</h4>
+                    <p data-zh="x86 PC 模拟" data-en="x86 PC Emulation">x86 PC 模拟</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>86Box</h4>
+                    <p data-zh="x86 全平台" data-en="x86 Full Platform">x86 全平台</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>VICE</h4>
+                    <p data-zh="MOS 6502 (Commodore)" data-en="MOS 6502 (Commodore)">MOS 6502 (Commodore)</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>FS-UAE</h4>
+                    <p data-zh="68000 (Amiga)" data-en="68000 (Amiga)">68000 (Amiga)</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>Hatari</h4>
+                    <p data-zh="68000 (Atari)" data-en="68000 (Atari)">68000 (Atari)</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>ARAnyM</h4>
+                    <p data-zh="68000 (Atari)" data-en="68000 (Atari)">68000 (Atari)</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>OpenMSX</h4>
+                    <p data-zh="Z80 (MSX)" data-en="Z80 (MSX)">Z80 (MSX)</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>Fuse</h4>
+                    <p data-zh="Z80 (ZX Spectrum)" data-en="Z80 (ZX Spectrum)">Z80 (ZX Spectrum)</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge engine-badge-v3">GPLv3</div>
+                    <h4>ScummVM</h4>
+                    <p data-zh="多平台冒险游戏" data-en="Multi-platform Adventures">多平台冒险游戏</p>
+                </div>
+                <div class="engine-card">
+                    <div class="engine-badge">GPLv2</div>
+                    <h4>Mednafen</h4>
+                    <p data-zh="多平台游戏机" data-en="Multi-platform Consoles">多平台游戏机</p>
+                </div>
             </div>
         </div>
     </section>
 
-    <footer>
+    <!-- Download Section -->
+    <section id="download" class="download">
         <div class="container">
-            <p data-zh="© 2026 VMStart. GPLv2 许可证" data-en="© 2026 VMStart. GPLv2 License">© 2026 VMStart. GPLv2 许可证</p>
-            <a href="https://github.com/zhengwenyi2026-alt/VMStart" class="github-link">GitHub</a>
+            <h2 class="section-title" data-zh="下载" data-en="Download">下载</h2>
+            <p class="section-subtitle" data-zh="选择适合你平台的版本" data-en="Choose the version for your platform">选择适合你平台的版本</p>
+            <div class="download-grid">
+                <div class="download-card featured">
+                    <div class="download-platform">
+                        <span class="platform-icon">🍎</span>
+                        <span class="platform-name" data-zh="macOS" data-en="macOS">macOS</span>
+                    </div>
+                    <div class="download-arch">Apple Silicon (arm64)</div>
+                    <div class="download-size">~97 MB</div>
+                    <a href="https://github.com/zhengwenyi2026-alt/VMStart/releases/latest/download/VMStart-1.0.0-arm64.dmg" class="btn btn-primary btn-block">
+                        <span data-zh="下载 DMG" data-en="Download DMG">下载 DMG</span>
+                    </a>
+                    <div class="download-req" data-zh="macOS 14.0+" data-en="macOS 14.0+">macOS 14.0+</div>
+                </div>
+                <div class="download-card">
+                    <div class="download-platform">
+                        <span class="platform-icon">💻</span>
+                        <span class="platform-name" data-zh="macOS" data-en="macOS">macOS</span>
+                    </div>
+                    <div class="download-arch">Intel (x86_64)</div>
+                    <div class="download-size">~97 MB</div>
+                    <a href="https://github.com/zhengwenyi2026-alt/VMStart/releases/latest/download/VMStart-1.0.0-x86_64.dmg" class="btn btn-outline btn-block">
+                        <span data-zh="下载 DMG" data-en="Download DMG">下载 DMG</span>
+                    </a>
+                    <div class="download-req" data-zh="macOS 14.0+" data-en="macOS 14.0+">macOS 14.0+</div>
+                </div>
+                <div class="download-card">
+                    <div class="download-platform">
+                        <span class="platform-icon">🪟</span>
+                        <span class="platform-name" data-zh="Windows" data-en="Windows">Windows</span>
+                    </div>
+                    <div class="download-arch">x86_64</div>
+                    <div class="download-size">~64 MB</div>
+                    <a href="https://github.com/zhengwenyi2026-alt/VMStart/releases/latest/download/VMStart-1.0.0-x86_64.exe" class="btn btn-outline btn-block">
+                        <span data-zh="下载 EXE" data-en="Download EXE">下载 EXE</span>
+                    </a>
+                    <div class="download-req" data-zh="Windows 10/11" data-en="Windows 10/11">Windows 10/11</div>
+                </div>
+                <div class="download-card">
+                    <div class="download-platform">
+                        <span class="platform-icon">🪟</span>
+                        <span class="platform-name" data-zh="Windows" data-en="Windows">Windows</span>
+                    </div>
+                    <div class="download-arch">ARM64</div>
+                    <div class="download-size">~60 MB</div>
+                    <a href="https://github.com/zhengwenyi2026-alt/VMStart/releases/latest/download/VMStart-1.0.0-arm64.exe" class="btn btn-outline btn-block">
+                        <span data-zh="下载 EXE" data-en="Download EXE">下载 EXE</span>
+                    </a>
+                    <div class="download-req" data-zh="Windows 10/11 ARM" data-en="Windows 10/11 ARM">Windows 10/11 ARM</div>
+                </div>
+            </div>
+            <div class="download-note">
+                <p data-zh="所有版本均为自包含构建，无需额外安装运行时。" data-en="All versions are self-contained builds, no additional runtime required.">所有版本均为自包含构建，无需额外安装运行时。</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Documentation Section -->
+    <section id="docs" class="docs">
+        <div class="container">
+            <h2 class="section-title" data-zh="快速开始" data-en="Quick Start">快速开始</h2>
+            <div class="docs-grid">
+                <div class="doc-card">
+                    <h3 data-zh="macOS 安装" data-en="macOS Installation">macOS 安装</h3>
+                    <ol>
+                        <li data-zh="下载对应架构的 DMG 文件" data-en="Download DMG for your architecture">下载对应架构的 DMG 文件</li>
+                        <li data-zh="打开 DMG，将 VMStart.app 拖入应用程序文件夹" data-en="Open DMG, drag VMStart.app to Applications">打开 DMG，将 VMStart.app 拖入应用程序文件夹</li>
+                        <li data-zh="首次打开需在系统设置中允许" data-en="Allow in System Settings on first launch">首次打开需在系统设置中允许</li>
+                        <li data-zh="启动 VMStart，开始创建虚拟机" data-en="Launch VMStart and start creating VMs">启动 VMStart，开始创建虚拟机</li>
+                    </ol>
+                </div>
+                <div class="doc-card">
+                    <h3 data-zh="Windows 安装" data-en="Windows Installation">Windows 安装</h3>
+                    <ol>
+                        <li data-zh="下载对应架构的 EXE 文件" data-en="Download EXE for your architecture">下载对应架构的 EXE 文件</li>
+                        <li data-zh="双击运行 VMStart.exe" data-en="Double-click to run VMStart.exe">双击运行 VMStart.exe</li>
+                        <li data-zh="如提示 SmartScreen，点击「仍要运行」" data-en="If SmartScreen warns, click 'Run anyway'">如提示 SmartScreen，点击「仍要运行」</li>
+                        <li data-zh="按照向导配置虚拟机" data-en="Follow the wizard to configure your VM">按照向导配置虚拟机</li>
+                    </ol>
+                </div>
+                <div class="doc-card">
+                    <h3 data-zh="内置 Linux" data-en="Built-in Linux">内置 Linux</h3>
+                    <ol>
+                        <li data-zh="打开 VMStart，点击「使用 Linux」" data-en="Open VMStart, click 'Use Linux'">打开 VMStart，点击「使用 Linux」</li>
+                        <li data-zh="选择「服务器版」或「图形界面」" data-en="Choose 'Server' or 'Desktop'">选择「服务器版」或「图形界面」</li>
+                        <li data-zh="系统自动以推荐配置启动" data-en="System launches with recommended config">系统自动以推荐配置启动</li>
+                        <li data-zh="Server: 2GB RAM / Desktop: 4GB RAM" data-en="Server: 2GB RAM / Desktop: 4GB RAM">Server: 2GB RAM / Desktop: 4GB RAM</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- License Section -->
+    <section class="license">
+        <div class="container">
+            <div class="license-content">
+                <h2 data-zh="开源许可证" data-en="Open Source License">开源许可证</h2>
+                <p data-zh="VMStart 及所有集成引擎均采用 GNU General Public License 许可证。" data-en="VMStart and all integrated engines are licensed under the GNU General Public License.">VMStart 及所有集成引擎均采用 GNU General Public License 许可证。</p>
+                <div class="license-badges">
+                    <span class="license-badge">GPLv2</span>
+                    <span class="license-badge" data-zh="16 个引擎" data-en="16 Engines">16 个引擎</span>
+                    <span class="license-badge" data-zh="完全开源" data-en="Fully Open">完全开源</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <span class="logo-icon">⚡</span>
+                        <span class="logo-text">VMStart</span>
+                    </div>
+                    <p data-zh="多引擎虚拟机管理器" data-en="Multi-Engine Virtual Machine Manager">多引擎虚拟机管理器</p>
+                </div>
+                <div class="footer-links">
+                    <h4 data-zh="链接" data-en="Links">链接</h4>
+                    <a href="https://github.com/zhengwenyi2026-alt/VMStart" target="_blank">GitHub</a>
+                    <a href="#download" data-zh="下载" data-en="Download">下载</a>
+                    <a href="#docs" data-zh="文档" data-en="Docs">文档</a>
+                </div>
+                <div class="footer-links">
+                    <h4 data-zh="引擎" data-en="Engines">引擎</h4>
+                    <a href="https://github.com/qemu/qemu" target="_blank">QEMU</a>
+                    <a href="https://github.com/dosbox-staging/dosbox-staging" target="_blank">DOSBox</a>
+                    <a href="https://github.com/86Box/86Box" target="_blank">86Box</a>
+                    <a href="https://github.com/scummvm/scummvm" target="_blank">ScummVM</a>
+                </div>
+                <div class="footer-links">
+                    <h4 data-zh="法律" data-en="Legal">法律</h4>
+                    <a href="https://github.com/zhengwenyi2026-alt/VMStart/blob/main/LICENSE" target="_blank">GPLv2 License</a>
+                    <a href="#license" data-zh="许可证列表" data-en="License List">许可证列表</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p data-zh="© 2026 VMStart. 保留所有权利。" data-en="© 2026 VMStart. All rights reserved.">© 2026 VMStart. 保留所有权利。</p>
+            </div>
         </div>
     </footer>
 
