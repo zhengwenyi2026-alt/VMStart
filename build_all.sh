@@ -47,6 +47,12 @@ build_macos() {
         return 1
     fi
     
+    # Ad-hoc 签名（无需开发者证书，绕过 Gatekeeper 部分限制）
+    log "Ad-hoc 签名..."
+    codesign --force --sign - --deep --options runtime "$APP_PATH" 2>/dev/null || \
+    codesign --force --sign - --deep "$APP_PATH" 2>/dev/null || \
+    warn "签名失败，将继续打包"
+    
     DMG_TEMP=$(mktemp -d)
     cp -R "$APP_PATH" "$DMG_TEMP/"
     ln -s /Applications "$DMG_TEMP/Applications"
