@@ -322,7 +322,7 @@
         if (useChromium) {
             // Use generic browser icon (SF Symbol)
             iconView = [[NSImageView alloc] initWithFrame:NSMakeRect((btnW - 48) / 2, btnH - 72, 48, 48)];
-            iconView.image = [NSImage imageWithSystemSymbolName:"globe" accessibilityDescription:nil];
+            iconView.image = [NSImage imageWithSystemSymbolName:@"globe" accessibilityDescription:nil];
             iconView.imageScaling = NSImageScaleProportionallyUpOrDown;
             [iconView setContentTintColor:[NSColor whiteColor]];
         } else {
