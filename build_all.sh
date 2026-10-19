@@ -73,6 +73,38 @@ LAUNCH_EOF
     
     rm -rf "$DMG_TEMP"
     ok "DMG 已创建: $OUTPUT_DIR/${ARCH}/VMStart-${VERSION}-${ARCH}.dmg"
+    
+    # 打包 PKG（无需签名，安装后自动解除隔离）
+    PKG_ROOT=$(mktemp -d)
+    SCRIPTS_DIR=$(mktemp -d)
+    mkdir -p "$PKG_ROOT/Applications"
+    cp -R "$APP_PATH" "$PKG_ROOT/Applications/"
+    
+    # 创建 postinstall 脚本（安装后自动解除隔离并提示）
+    cat > "$SCRIPTS_DIR/postinstall" << 'POST_EOF'
+#!/bin/bash
+# 解除隔离属性
+xattr -cr "/Applications/VMStart.app" 2>/dev/null
+
+# 显示完成对话框
+osascript << 'APPLESCRIPT'
+display dialog "VMStart 安装完成！\n\n已自动解除安全隔离，可直接从启动台打开。" buttons {"打开 VMStart", "完成"} default button "完成" with icon note
+if button returned of result is "打开 VMStart" then
+    tell application "VMStart" to activate
+end if
+APPLESCRIPT
+POST_EOF
+    chmod +x "$SCRIPTS_DIR/postinstall"
+    
+    pkgbuild --root "$PKG_ROOT" \
+        --scripts "$SCRIPTS_DIR" \
+        --identifier "com.vmstart.app" \
+        --version "$VERSION" \
+        --install-location "/" \
+        "$OUTPUT_DIR/${ARCH}/VMStart-${VERSION}-${ARCH}.pkg"
+    
+    rm -rf "$PKG_ROOT" "$SCRIPTS_DIR"
+    ok "PKG 已创建：$OUTPUT_DIR/${ARCH}/VMStart-${VERSION}-${ARCH}.pkg"
 }
 
 build_windows_docker() {
