@@ -42,7 +42,7 @@ License Files:
   LICENSE-ARAnyM-GPLv2.txt        - ARAnyM
   LICENSE-OpenMSX-GPLv2.txt       - OpenMSX
   LICENSE-Fuse-GPLv2.txt          - Fuse
-  LICENSE-ScummVM-GPLv2.txt       - ScummVM (GPLv3)
+  LICENSE-ScummVM-GPLv3.txt       - ScummVM (GPLv3)
   LICENSE-Mednafen-GPLv2.txt      - Mednafen
 
 Source Repositories:

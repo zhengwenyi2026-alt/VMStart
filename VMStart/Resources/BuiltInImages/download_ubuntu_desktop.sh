@@ -45,15 +45,14 @@ fi
 echo "[3/5] 去除 Ubuntu 商标..."
 qemu-img convert -f qcow2 -O qcow2 "$TEMP_DIR/$IMAGE_NAME" "$TEMP_DIR/$OUTPUT_IMAGE"
 
-# 创建商标替换配置
-cat > "$TEMP_DIR/branding.txt" << 'BRAND_EOF'
-/etc/issue:VMStart Linux Desktop \n \l\n
-/etc/hostname:vmstart-desktop
-/etc/motd:Welcome to VMStart Linux Desktop\n
-/etc/os-release:NAME="VMStart Linux"\nVERSION="24.04"\nID=vmstart-linux\nPRETTY_NAME="VMStart Linux Desktop 24.04"\n
-BRAND_EOF
-
-echo "  商标去除配置已生成"
+# 调用商标去除脚本
+if [ -f "$SCRIPT_DIR/remove_ubuntu_branding.sh" ]; then
+    echo "  运行商标去除脚本..."
+    chmod +x "$SCRIPT_DIR/remove_ubuntu_branding.sh"
+    bash "$SCRIPT_DIR/remove_ubuntu_branding.sh" "$TEMP_DIR/$OUTPUT_IMAGE" || echo "  警告: 商标去除失败，请手动运行 remove_ubuntu_branding.sh"
+else
+    echo "  警告: remove_ubuntu_branding.sh 未找到"
+fi
 
 # 安装到资源目录
 echo "[4/5] 安装镜像..."

@@ -320,17 +320,11 @@
         // Icon
         NSImageView *iconView;
         if (useChromium) {
-            // Use Chromium B&W icon
-            NSString *iconPath = [[NSBundle mainBundle] pathForResource:@"chromium_icon" ofType:@"png"];
-            if (!iconPath) {
-                // Fallback: look in Resources directory
-                NSString *resDir = [[NSBundle mainBundle] resourcePath];
-                iconPath = [resDir stringByAppendingPathComponent:@"chromium_icon.png"];
-            }
-            NSImage *chromiumImg = [[NSImage alloc] initWithContentsOfFile:iconPath];
+            // Use generic browser icon (SF Symbol)
             iconView = [[NSImageView alloc] initWithFrame:NSMakeRect((btnW - 48) / 2, btnH - 72, 48, 48)];
-            iconView.image = chromiumImg;
+            iconView.image = [NSImage imageWithSystemSymbolName:"globe" accessibilityDescription:nil];
             iconView.imageScaling = NSImageScaleProportionallyUpOrDown;
+            [iconView setContentTintColor:[NSColor whiteColor]];
         } else {
             iconView = [[NSImageView alloc] initWithFrame:NSMakeRect((btnW - 48) / 2, btnH - 72, 48, 48)];
             iconView.image = [NSImage imageWithSystemSymbolName:btnDef[@"icon"] accessibilityDescription:nil];

@@ -259,13 +259,13 @@ jobs:
             - Built-in Linux (Ubuntu Server & Desktop)
             - Chromium browser for ISO downloads
             - Log viewer & printer support
-            - All engines GPLv2 licensed
+            - 15 engines GPLv2, 1 engine (ScummVM) GPLv3
             
             ### Requirements
             - macOS 14.0+ (Apple Silicon or Intel)
             - Windows 10/11 (64-bit)
             
             ### License
-            GPLv2
+            GPLv2 or later (compatible with GPLv3 components)
           draft: false
           prerelease: false

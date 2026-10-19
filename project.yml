@@ -40,8 +40,6 @@ targets:
       - path: VMStart/Resources/zh-Hans.lproj
         buildPhase: resources
         type: folder
-      - path: VMStart/Resources/chromium_icon.png
-        buildPhase: resources
       - path: VMStart/Resources/Licenses
         buildPhase: resources
         type: folder
