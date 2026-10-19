@@ -57,21 +57,6 @@ build_macos() {
     cp -R "$APP_PATH" "$DMG_TEMP/"
     ln -s /Applications "$DMG_TEMP/Applications"
     
-    # 添加启动脚本（解除 macOS 隔离属性）
-    cat > "$DMG_TEMP/启动 VMStart.command" << 'LAUNCH_EOF'
-#!/bin/bash
-APP_DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_PATH="$APP_DIR/VMStart.app"
-if [ -d "$APP_PATH" ]; then
-    xattr -cr "$APP_PATH"
-    open "$APP_PATH"
-else
-    echo "未找到 VMStart.app"
-    read -p "按回车键退出..."
-fi
-LAUNCH_EOF
-    chmod +x "$DMG_TEMP/启动 VMStart.command"
-    
     hdiutil create -volname "VMStart" \
         -srcfolder "$DMG_TEMP" \
         -ov -format UDZO \
