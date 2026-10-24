@@ -256,7 +256,6 @@ jobs:
             ### Features
             - 16 emulation engines (QEMU + retro consoles)
             - 33 CPU architectures supported
-            - Built-in Linux (Ubuntu Server & Desktop)
             - Chromium browser for ISO downloads
             - Log viewer & printer support
             - 15 engines GPLv2, 1 engine (ScummVM) GPLv3

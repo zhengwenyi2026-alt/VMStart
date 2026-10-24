@@ -319,9 +319,6 @@
 "welcome.downloadImage" = "使用浏览器\n下载镜像";
 "welcome.userGuide" = "用户指南";
 "welcome.support" = "支持";
-"welcome.useLinux" = "使用 Linux";
-"welcome.linuxServer" = "服务器版";
-"welcome.linuxDesktop" = "图形界面";
 
 /* Toolbar */
 "toolbar.viewLog" = "查看日志";

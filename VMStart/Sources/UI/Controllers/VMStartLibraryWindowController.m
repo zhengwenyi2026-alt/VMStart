@@ -15,7 +15,6 @@
 #import "VMStartCardView.h"
 #import "VMStartEngineSelector.h"
 #import "VMStartSettingsWindowController.h"
-#import "VMStartBuiltInLinuxManager.h"
 
 @interface VMStartLibraryWindowController () <VMStartConfigDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate, NSMenuDelegate>
 @property (nonatomic, strong) NSTableView *tableView;
@@ -289,25 +288,26 @@
     CGFloat gridSpacingY = 16;
     CGFloat gridTotalW = btnW * 2 + gridSpacingX;
     CGFloat gridTotalH = btnH * 2 + gridSpacingY;
-    CGFloat gridStartX = (self.welcomeView.bounds.size.width - gridTotalW) / 2;
-    CGFloat gridStartY = self.welcomeView.bounds.size.height / 2 - gridTotalH / 2 + 30;
 
-    // Button definitions: icon, text, selector, hasChromiumIcon
+    // 固定尺寸容器整体居中，避免磁贴随窗口缩放被拉散
+    NSView *grid = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, gridTotalW, gridTotalH)];
+    grid.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.welcomeView addSubview:grid];
+
     NSArray *gridButtons = @[
-        @{@"icon": @"plus.circle", @"text": AMLocalizedString(@"welcome.createVM"), @"sel": @"addVM:", @"chromium": @NO},
-        @{@"icon": @"globe", @"text": AMLocalizedString(@"welcome.downloadImage"), @"sel": @"downloadImage:", @"chromium": @YES},
-        @{@"icon": @"book.circle", @"text": AMLocalizedString(@"welcome.userGuide"), @"sel": @"openUserGuide:", @"chromium": @NO},
-        @{@"icon": @"questionmark.circle", @"text": AMLocalizedString(@"welcome.support"), @"sel": @"openSupport:", @"chromium": @NO},
+        @{@"icon": @"plus.circle", @"text": AMLocalizedString(@"welcome.createVM"), @"sel": @"addVM:"},
+        @{@"icon": @"globe", @"text": AMLocalizedString(@"welcome.downloadImage"), @"sel": @"downloadImage:"},
+        @{@"icon": @"book.circle", @"text": AMLocalizedString(@"welcome.userGuide"), @"sel": @"openUserGuide:"},
+        @{@"icon": @"questionmark.circle", @"text": AMLocalizedString(@"welcome.support"), @"sel": @"openSupport:"},
     ];
 
     for (NSInteger i = 0; i < gridButtons.count; i++) {
         NSInteger row = i / 2;
         NSInteger col = i % 2;
-        CGFloat x = gridStartX + col * (btnW + gridSpacingX);
-        CGFloat y = gridStartY + (1 - row) * (btnH + gridSpacingY);
+        CGFloat x = col * (btnW + gridSpacingX);
+        CGFloat y = (1 - row) * (btnH + gridSpacingY);
 
         NSDictionary *btnDef = gridButtons[i];
-        BOOL useChromium = [btnDef[@"chromium"] boolValue];
 
         NSView *tile = [[NSView alloc] initWithFrame:NSMakeRect(x, y, btnW, btnH)];
         tile.wantsLayer = YES;
@@ -315,35 +315,22 @@
         tile.layer.backgroundColor = [NSColor colorWithRed:0.28 green:0.28 blue:0.30 alpha:1.0].CGColor;
         tile.layer.borderWidth = 1;
         tile.layer.borderColor = [NSColor colorWithRed:0.35 green:0.35 blue:0.37 alpha:1.0].CGColor;
-        tile.autoresizingMask = NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin | NSViewMaxYMargin;
 
-        // Icon
-        NSImageView *iconView;
-        if (useChromium) {
-            // Use generic browser icon (SF Symbol)
-            iconView = [[NSImageView alloc] initWithFrame:NSMakeRect((btnW - 48) / 2, btnH - 72, 48, 48)];
-            iconView.image = [NSImage imageWithSystemSymbolName:@"globe" accessibilityDescription:nil];
-            iconView.imageScaling = NSImageScaleProportionallyUpOrDown;
-            [iconView setContentTintColor:[NSColor whiteColor]];
-        } else {
-            iconView = [[NSImageView alloc] initWithFrame:NSMakeRect((btnW - 48) / 2, btnH - 72, 48, 48)];
-            iconView.image = [NSImage imageWithSystemSymbolName:btnDef[@"icon"] accessibilityDescription:nil];
-            iconView.imageScaling = NSImageScaleProportionallyUpOrDown;
-            [iconView setContentTintColor:[NSColor whiteColor]];
-        }
+        NSImageView *iconView = [[NSImageView alloc] initWithFrame:NSMakeRect((btnW - 48) / 2, btnH - 72, 48, 48)];
+        iconView.image = [NSImage imageWithSystemSymbolName:btnDef[@"icon"] accessibilityDescription:nil];
+        iconView.imageScaling = NSImageScaleProportionallyUpOrDown;
+        [iconView setContentTintColor:[NSColor whiteColor]];
         [tile addSubview:iconView];
 
-        // Text label (white, was red for download button)
         NSTextField *textLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(10, 12, btnW - 20, 44)];
         textLabel.stringValue = btnDef[@"text"];
         textLabel.font = [NSFont systemFontOfSize:12 weight:NSFontWeightMedium];
-        textLabel.textColor = [NSColor whiteColor]; // 红色字改白色
+        textLabel.textColor = [NSColor whiteColor];
         textLabel.alignment = NSTextAlignmentCenter;
         textLabel.bezeled = NO; textLabel.drawsBackground = NO; textLabel.editable = NO;
         textLabel.lineBreakMode = NSLineBreakByWordWrapping;
         [tile addSubview:textLabel];
 
-        // Clickable overlay
         NSButton *tileBtn = [NSButton buttonWithTitle:@"" target:self action:NSSelectorFromString(btnDef[@"sel"])];
         tileBtn.bezelStyle = NSBezelStyleRegularSquare;
         tileBtn.frame = tile.bounds;
@@ -353,90 +340,8 @@
         tileBtn.alphaValue = 0.001;
         [tile addSubview:tileBtn];
 
-        [self.welcomeView addSubview:tile];
+        [grid addSubview:tile];
     }
-
-    // ── "使用 Linux" section with two buttons ───
-    CGFloat linuxSectionY = gridStartY - 80;
-    CGFloat linuxBtnW = 140;
-    CGFloat linuxBtnH = 50;
-    CGFloat linuxSpacing = 16;
-    CGFloat linuxTotalW = linuxBtnW * 2 + linuxSpacing;
-    CGFloat linuxStartX = (self.welcomeView.bounds.size.width - linuxTotalW) / 2;
-
-    // "使用 Linux" label
-    NSTextField *linuxLabel = [[NSTextField alloc] initWithFrame:NSZeroRect];
-    linuxLabel.stringValue = AMLocalizedString(@"welcome.useLinux");
-    linuxLabel.font = [NSFont systemFontOfSize:13 weight:NSFontWeightMedium];
-    linuxLabel.textColor = [NSColor whiteColor];
-    linuxLabel.alignment = NSTextAlignmentCenter;
-    linuxLabel.bezeled = NO; linuxLabel.drawsBackground = NO; linuxLabel.editable = NO;
-    linuxLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.welcomeView addSubview:linuxLabel];
-
-    // 服务器版 button
-    NSView *serverTile = [[NSView alloc] initWithFrame:NSMakeRect(linuxStartX, linuxSectionY, linuxBtnW, linuxBtnH)];
-    serverTile.wantsLayer = YES;
-    serverTile.layer.cornerRadius = 10;
-    serverTile.layer.backgroundColor = [NSColor colorWithRed:0.28 green:0.28 blue:0.30 alpha:1.0].CGColor;
-    serverTile.layer.borderWidth = 1;
-    serverTile.layer.borderColor = [NSColor colorWithRed:0.35 green:0.35 blue:0.37 alpha:1.0].CGColor;
-    serverTile.autoresizingMask = NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin | NSViewMaxYMargin;
-
-    NSImageView *serverIcon = [[NSImageView alloc] initWithFrame:NSMakeRect(12, (linuxBtnH - 24) / 2, 24, 24)];
-    serverIcon.image = [NSImage imageWithSystemSymbolName:@"server.rack" accessibilityDescription:nil];
-    serverIcon.imageScaling = NSImageScaleProportionallyUpOrDown;
-    [serverIcon setContentTintColor:[NSColor whiteColor]];
-    [serverTile addSubview:serverIcon];
-
-    NSTextField *serverText = [[NSTextField alloc] initWithFrame:NSMakeRect(42, (linuxBtnH - 20) / 2, linuxBtnW - 54, 20)];
-    serverText.stringValue = AMLocalizedString(@"welcome.linuxServer");
-    serverText.font = [NSFont systemFontOfSize:12 weight:NSFontWeightMedium];
-    serverText.textColor = [NSColor whiteColor];
-    serverText.bezeled = NO; serverText.drawsBackground = NO; serverText.editable = NO;
-    [serverTile addSubview:serverText];
-
-    NSButton *serverBtn = [NSButton buttonWithTitle:@"" target:self action:@selector(useLinuxServer:)];
-    serverBtn.bezelStyle = NSBezelStyleRegularSquare;
-    serverBtn.frame = serverTile.bounds;
-    serverBtn.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    serverBtn.wantsLayer = YES;
-    serverBtn.layer.backgroundColor = [NSColor clearColor].CGColor;
-    serverBtn.alphaValue = 0.001;
-    [serverTile addSubview:serverBtn];
-    [self.welcomeView addSubview:serverTile];
-
-    // 图形界面 button
-    NSView *desktopTile = [[NSView alloc] initWithFrame:NSMakeRect(linuxStartX + linuxBtnW + linuxSpacing, linuxSectionY, linuxBtnW, linuxBtnH)];
-    desktopTile.wantsLayer = YES;
-    desktopTile.layer.cornerRadius = 10;
-    desktopTile.layer.backgroundColor = [NSColor colorWithRed:0.28 green:0.28 blue:0.30 alpha:1.0].CGColor;
-    desktopTile.layer.borderWidth = 1;
-    desktopTile.layer.borderColor = [NSColor colorWithRed:0.35 green:0.35 blue:0.37 alpha:1.0].CGColor;
-    desktopTile.autoresizingMask = NSViewMinXMargin | NSViewMaxXMargin | NSViewMinYMargin | NSViewMaxYMargin;
-
-    NSImageView *desktopIcon = [[NSImageView alloc] initWithFrame:NSMakeRect(12, (linuxBtnH - 24) / 2, 24, 24)];
-    desktopIcon.image = [NSImage imageWithSystemSymbolName:@"display" accessibilityDescription:nil];
-    desktopIcon.imageScaling = NSImageScaleProportionallyUpOrDown;
-    [desktopIcon setContentTintColor:[NSColor whiteColor]];
-    [desktopTile addSubview:desktopIcon];
-
-    NSTextField *desktopText = [[NSTextField alloc] initWithFrame:NSMakeRect(42, (linuxBtnH - 20) / 2, linuxBtnW - 54, 20)];
-    desktopText.stringValue = AMLocalizedString(@"welcome.linuxDesktop");
-    desktopText.font = [NSFont systemFontOfSize:12 weight:NSFontWeightMedium];
-    desktopText.textColor = [NSColor whiteColor];
-    desktopText.bezeled = NO; desktopText.drawsBackground = NO; desktopText.editable = NO;
-    [desktopTile addSubview:desktopText];
-
-    NSButton *desktopBtn = [NSButton buttonWithTitle:@"" target:self action:@selector(useLinuxDesktop:)];
-    desktopBtn.bezelStyle = NSBezelStyleRegularSquare;
-    desktopBtn.frame = desktopTile.bounds;
-    desktopBtn.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    desktopBtn.wantsLayer = YES;
-    desktopBtn.layer.backgroundColor = [NSColor clearColor].CGColor;
-    desktopBtn.alphaValue = 0.001;
-    [desktopTile addSubview:desktopBtn];
-    [self.welcomeView addSubview:desktopTile];
 
     // ── "查看许可证" link button ───
     NSButton *licensesBtn = [NSButton buttonWithTitle:AMLocalizedString(@"licenses.viewLicenses") target:self action:@selector(showLicensesPanel:)];
@@ -448,10 +353,12 @@
 
     // ─── Constraints ───
     [NSLayoutConstraint activateConstraints:@[
+        [grid.widthAnchor constraintEqualToConstant:gridTotalW],
+        [grid.heightAnchor constraintEqualToConstant:gridTotalH],
+        [grid.centerXAnchor constraintEqualToAnchor:self.welcomeView.centerXAnchor],
+        [grid.centerYAnchor constraintEqualToAnchor:self.welcomeView.centerYAnchor constant:20],
         [title.centerXAnchor constraintEqualToAnchor:self.welcomeView.centerXAnchor],
-        [title.topAnchor constraintEqualToAnchor:self.welcomeView.topAnchor constant:20],
-        [linuxLabel.centerXAnchor constraintEqualToAnchor:self.welcomeView.centerXAnchor],
-        [linuxLabel.topAnchor constraintEqualToAnchor:title.bottomAnchor constant:gridTotalH + 40],
+        [title.bottomAnchor constraintEqualToAnchor:grid.topAnchor constant:-24],
         [licensesBtn.centerXAnchor constraintEqualToAnchor:self.welcomeView.centerXAnchor],
         [licensesBtn.bottomAnchor constraintEqualToAnchor:self.welcomeView.bottomAnchor constant:-20],
     ]];
@@ -1633,84 +1540,6 @@
         [[NSWorkspace sharedWorkspace] openURL:url];
     }
     [self appendLog:@"[INFO] 打开支持页面..."];
-}
-
-- (void)useLinuxServer:(id)sender {
-    // 使用内置 Linux 管理器启动 Ubuntu Server
-    VMStartBuiltInLinuxManager *linuxManager = [VMStartBuiltInLinuxManager sharedManager];
-    
-    if ([linuxManager isImageReadyForType:VMStartBuiltInLinuxTypeServer]) {
-        [self appendLog:@"[INFO] 正在启动内置 Linux Server..."];
-        [linuxManager launchBuiltInLinux:VMStartBuiltInLinuxTypeServer completion:^(BOOL success, NSError *error) {
-            if (success) {
-                [self appendLog:@"[INFO] Linux Server 已启动"];
-                // 同时创建 VM 条目
-                VMStartVirtualMachine *vm = [VMStartVirtualMachine virtualMachineWithName:@"VMStart Linux Server" architecture:VMStartArchX86_64];
-                vm.osType = VMStartOSUbuntu;
-                vm.memoryValue = 2048;
-                vm.memoryUnit = @"MB";
-                vm.cpuCores = 2;
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [self.virtualMachines addObject:vm];
-                    [self.tableView reloadData];
-                    [self updateContentVisibility];
-                });
-            } else {
-                [self appendLog:[NSString stringWithFormat:@"[ERROR] 启动失败：%@", error.localizedDescription]];
-            }
-        }];
-    } else {
-        // 镜像未就绪，创建 VM 条目供手动配置
-        [self appendLog:@"[INFO] 内置镜像未就绪，创建推荐配置虚拟机..."];
-        VMStartVirtualMachine *vm = [VMStartVirtualMachine virtualMachineWithName:@"VMStart Linux Server" architecture:VMStartArchX86_64];
-        vm.osType = VMStartOSUbuntu;
-        vm.memoryValue = 2048;
-        vm.memoryUnit = @"MB";
-        vm.cpuCores = 2;
-        [self.virtualMachines addObject:vm];
-        [self.tableView reloadData];
-        [self updateContentVisibility];
-        [self appendLog:@"[INFO] Linux Server 虚拟机已创建，推荐配置：2GB 内存，2 核心"];
-    }
-}
-
-- (void)useLinuxDesktop:(id)sender {
-    // 使用内置 Linux 管理器启动 Ubuntu Desktop
-    VMStartBuiltInLinuxManager *linuxManager = [VMStartBuiltInLinuxManager sharedManager];
-    
-    if ([linuxManager isImageReadyForType:VMStartBuiltInLinuxTypeDesktop]) {
-        [self appendLog:@"[INFO] 正在启动内置 Linux Desktop..."];
-        [linuxManager launchBuiltInLinux:VMStartBuiltInLinuxTypeDesktop completion:^(BOOL success, NSError *error) {
-            if (success) {
-                [self appendLog:@"[INFO] Linux Desktop 已启动"];
-                // 同时创建 VM 条目
-                VMStartVirtualMachine *vm = [VMStartVirtualMachine virtualMachineWithName:@"VMStart Linux Desktop" architecture:VMStartArchX86_64];
-                vm.osType = VMStartOSUbuntu;
-                vm.memoryValue = 4096;
-                vm.memoryUnit = @"MB";
-                vm.cpuCores = 4;
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [self.virtualMachines addObject:vm];
-                    [self.tableView reloadData];
-                    [self updateContentVisibility];
-                });
-            } else {
-                [self appendLog:[NSString stringWithFormat:@"[ERROR] 启动失败：%@", error.localizedDescription]];
-            }
-        }];
-    } else {
-        // 镜像未就绪，创建 VM 条目供手动配置
-        [self appendLog:@"[INFO] 内置镜像未就绪，创建推荐配置虚拟机..."];
-        VMStartVirtualMachine *vm = [VMStartVirtualMachine virtualMachineWithName:@"VMStart Linux Desktop" architecture:VMStartArchX86_64];
-        vm.osType = VMStartOSUbuntu;
-        vm.memoryValue = 4096;
-        vm.memoryUnit = @"MB";
-        vm.cpuCores = 4;
-        [self.virtualMachines addObject:vm];
-        [self.tableView reloadData];
-        [self updateContentVisibility];
-        [self appendLog:@"[INFO] Linux Desktop 虚拟机已创建，推荐配置：4GB 内存，4 核心"];
-    }
 }
 
 #pragma mark - Log & Print

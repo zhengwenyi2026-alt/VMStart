@@ -61,7 +61,7 @@ VMStart 采用 **GNU General Public License Version 2 or later** 许可证。
 
 ## 商标声明
 
-- **Ubuntu** 是 Canonical Ltd. 的注册商标。本项目内置 Linux 镜像基于 Ubuntu 构建。
+- **Ubuntu** 是 Canonical Ltd. 的注册商标。
 - **Chromium** 是 Google Inc. 的商标。本项目集成 Chromium 浏览器用于 ISO 下载。
 - **QEMU** 是 Fabrice Bellard 的商标。
 - **Apple**、**macOS** 是 Apple Inc. 的注册商标。

@@ -319,9 +319,6 @@
 "welcome.downloadImage" = "Download Image\nvia Browser";
 "welcome.userGuide" = "User Guide";
 "welcome.support" = "Support";
-"welcome.useLinux" = "Use Linux";
-"welcome.linuxServer" = "Server Edition";
-"welcome.linuxDesktop" = "Desktop Edition";
 
 /* Toolbar */
 "toolbar.viewLog" = "View Logs";
