@@ -105,38 +105,38 @@ static const NSInteger kSerialPort = 4321;
 
     // Buttons
     CGFloat bx = 12;
-    self.startStopButton = [self makeToolbarBtn:@"Start" icon:@"play.fill" x:bx];
+    self.startStopButton = [self makeToolbarBtn:AMLocalizedString(@"console.start") icon:@"play.fill" x:bx];
     self.startStopButton.target = self;
     self.startStopButton.action = @selector(toggleStartStop:);
     [self.toolbar addSubview:self.startStopButton];
     bx += 88;
 
-    self.pauseResumeButton = [self makeToolbarBtn:@"Pause" icon:@"pause.fill" x:bx];
+    self.pauseResumeButton = [self makeToolbarBtn:AMLocalizedString(@"console.pause") icon:@"pause.fill" x:bx];
     self.pauseResumeButton.target = self;
     self.pauseResumeButton.action = @selector(togglePauseResume:);
     self.pauseResumeButton.enabled = NO;
     [self.toolbar addSubview:self.pauseResumeButton];
     bx += 88;
 
-    self.mediaButton = [self makeToolbarBtn:@"Media" icon:@"opticaldisc" x:bx];
+    self.mediaButton = [self makeToolbarBtn:AMLocalizedString(@"console.media") icon:@"opticaldisc" x:bx];
     self.mediaButton.target = self;
     self.mediaButton.action = @selector(showMediaMenu:);
     [self.toolbar addSubview:self.mediaButton];
     bx += 88;
 
-    self.screenshotButton = [self makeToolbarBtn:@"Capture" icon:@"camera" x:bx];
+    self.screenshotButton = [self makeToolbarBtn:AMLocalizedString(@"console_capture") icon:@"camera" x:bx];
     self.screenshotButton.target = self;
     self.screenshotButton.action = @selector(takeScreenshot:);
     [self.toolbar addSubview:self.screenshotButton];
     bx += 88;
 
-    self.recordButton = [self makeToolbarBtn:@"Record" icon:@"record.circle" x:bx];
+    self.recordButton = [self makeToolbarBtn:AMLocalizedString(@"console.record") icon:@"record.circle" x:bx];
     self.recordButton.target = self;
     self.recordButton.action = @selector(toggleRecording:);
     [self.toolbar addSubview:self.recordButton];
     bx += 88;
 
-    self.fullscreenButton = [self makeToolbarBtn:@"Full" icon:@"arrow.up.left.and.arrow.down.right" x:bx];
+    self.fullscreenButton = [self makeToolbarBtn:AMLocalizedString(@"console.full") icon:@"arrow.up.left.and.arrow.down.right" x:bx];
     self.fullscreenButton.target = self;
     self.fullscreenButton.action = @selector(toggleFullscreen:);
     [self.toolbar addSubview:self.fullscreenButton];
@@ -160,13 +160,13 @@ static const NSInteger kSerialPort = 4321;
     [content addSubview:self.tabBar];
 
     CGFloat tx = 8;
-    self.tabDisplay = [self makeTabBtn:@"🖥 Display" tag:0 x:tx];
+    self.tabDisplay = [self makeTabBtn:[@"🖥 " stringByAppendingString:AMLocalizedString(@"console.tab.display")] tag:0 x:tx];
     [self.tabBar addSubview:self.tabDisplay]; tx += 90;
-    self.tabLog = [self makeTabBtn:@"📋 Log" tag:1 x:tx];
+    self.tabLog = [self makeTabBtn:[@"📋 " stringByAppendingString:AMLocalizedString(@"console.tab.log")] tag:1 x:tx];
     [self.tabBar addSubview:self.tabLog]; tx += 70;
-    self.tabSerial = [self makeTabBtn:@"🔌 Serial" tag:2 x:tx];
+    self.tabSerial = [self makeTabBtn:[@"🔌 " stringByAppendingString:AMLocalizedString(@"console.tab.serial")] tag:2 x:tx];
     [self.tabBar addSubview:self.tabSerial]; tx += 80;
-    self.tabMonitor = [self makeTabBtn:@"📊 Monitor" tag:3 x:tx];
+    self.tabMonitor = [self makeTabBtn:[@"📊 " stringByAppendingString:AMLocalizedString(@"console.tab.monitor")] tag:3 x:tx];
     [self.tabBar addSubview:self.tabMonitor];
 
     // ─── Display container (VNC) ───
@@ -231,15 +231,15 @@ static const NSInteger kSerialPort = 4321;
     self.statusBar.font = [NSFont systemFontOfSize:10];
     self.statusBar.bezeled = NO; self.statusBar.drawsBackground = NO; self.statusBar.editable = NO;
     self.statusBar.textColor = [NSColor colorWithWhite:0.5 alpha:1.0];
-    self.statusBar.stringValue = @"Ready";
+    self.statusBar.stringValue = AMLocalizedString(@"console.ready");
     self.statusBar.autoresizingMask = NSViewWidthSizable | NSViewMaxYMargin;
     [content addSubview:self.statusBar];
 
     // ─── Splash overlay ───
     [self setupSplashView];
 
-    [self appendLog:[NSString stringWithFormat:@"VMStart Console - %@\nArchitecture: %@\n\n",
-                     self.virtualMachine.name, self.virtualMachine.architectureDisplayName]];
+    [self appendLog:[AMLocalizedStringF(@"console.log.header",
+                     self.virtualMachine.name, self.virtualMachine.architectureDisplayName) stringByAppendingString:@"\n\n"]];
 }
 
 - (NSButton *)makeTabBtn:(NSString *)title tag:(NSInteger)tag x:(CGFloat)x {
@@ -318,7 +318,7 @@ static const NSInteger kSerialPort = 4321;
 
     // Subtitle
     self.splashSubtitle = [[NSTextField alloc] initWithFrame:NSZeroRect];
-    self.splashSubtitle.stringValue = @"Starting virtual machine...";
+    self.splashSubtitle.stringValue = AMLocalizedString(@"console.starting");
     self.splashSubtitle.font = [NSFont systemFontOfSize:14 weight:NSFontWeightLight];
     self.splashSubtitle.textColor = [NSColor colorWithWhite:0.6 alpha:1.0];
     self.splashSubtitle.alignment = NSTextAlignmentCenter;
@@ -335,7 +335,7 @@ static const NSInteger kSerialPort = 4321;
 
     // Version label
     NSTextField *versionLabel = [[NSTextField alloc] initWithFrame:NSZeroRect];
-    versionLabel.stringValue = @"Version 1.0";
+    versionLabel.stringValue = AMLocalizedStringF(@"console.version", @"1.0");
     versionLabel.font = [NSFont systemFontOfSize:10];
     versionLabel.textColor = [NSColor colorWithWhite:0.35 alpha:1.0];
     versionLabel.alignment = NSTextAlignmentCenter;
@@ -364,9 +364,9 @@ static const NSInteger kSerialPort = 4321;
 - (void)startVM {
     if (self.engine.isRunning) return;
     [self showSplash];
-    [self appendLog:@"Starting virtual machine...\n"];
-    self.statusBar.stringValue = @"Starting...";
-    self.startStopButton.title = @"Stop";
+    [self appendLog:[AMLocalizedString(@"console.starting") stringByAppendingString:@"\n"]];
+    self.statusBar.stringValue = AMLocalizedString(@"status.starting");
+    self.startStopButton.title = AMLocalizedString(@"console.stop");
 
     // Configure VNC display for embedded viewer
     self.virtualMachine.displayType = @"none";
@@ -382,15 +382,15 @@ static const NSInteger kSerialPort = 4321;
     if (![self.engine startWithError:&error]) {
         [self hideSplash];
         [self appendLog:[NSString stringWithFormat:@"[ERROR] %@\n", error.localizedDescription]];
-        self.statusBar.stringValue = @"Error";
-        self.startStopButton.title = @"Start";
+        self.statusBar.stringValue = AMLocalizedString(@"status.error");
+        self.startStopButton.title = AMLocalizedString(@"console.start");
     }
 }
 
 - (void)stopVM {
     if (!self.engine.isRunning) return;
-    [self appendLog:@"Stopping virtual machine...\n"];
-    self.statusBar.stringValue = @"Stopping...";
+    [self appendLog:[AMLocalizedString(@"console.stopping") stringByAppendingString:@"\n"]];
+    self.statusBar.stringValue = AMLocalizedString(@"status.stopping");
     [self.engine stop];
 }
 
@@ -401,12 +401,12 @@ static const NSInteger kSerialPort = 4321;
 - (void)togglePauseResume:(id)sender {
     if (self.virtualMachine.status == VMStartStatusPaused) {
         if ([self.engine respondsToSelector:@selector(resume)]) [self.engine resume];
-        [self appendLog:@"Resumed\n"];
-        self.pauseResumeButton.title = @"Pause";
+        [self appendLog:[AMLocalizedString(@"console.resumed") stringByAppendingString:@"\n"]];
+        self.pauseResumeButton.title = AMLocalizedString(@"console.pause");
     } else {
         if ([self.engine respondsToSelector:@selector(pause)]) [self.engine pause];
-        [self appendLog:@"Paused\n"];
-        self.pauseResumeButton.title = @"Resume";
+        [self appendLog:[AMLocalizedString(@"console.paused") stringByAppendingString:@"\n"]];
+        self.pauseResumeButton.title = AMLocalizedString(@"console.resume");
     }
 }
 
@@ -430,13 +430,13 @@ static const NSInteger kSerialPort = 4321;
         NSData *pngData = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
         if (pngData) {
             [pngData writeToFile:path atomically:YES];
-            [self appendLog:[NSString stringWithFormat:@"[INFO] Screenshot saved: %@\n", path]];
+            [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedStringF(@"console.screenshotSaved", path)]];
         }
     } else {
         // Fallback to QEMU monitor
         NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"vmstart_screenshot.ppm"];
         if (self.qemuProcess && [self.qemuProcess captureScreenshotToPath:path]) {
-            [self appendLog:[NSString stringWithFormat:@"[INFO] Screenshot: %@\n", path]];
+            [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedStringF(@"console.screenshotSaved", path)]];
         }
     }
 }
@@ -461,9 +461,9 @@ static const NSInteger kSerialPort = 4321;
 - (void)startRecording {
     self.isRecording = YES;
     self.recordedFrames = [NSMutableArray array];
-    self.recordButton.title = @"Stop Rec";
+    self.recordButton.title = AMLocalizedString(@"console.stopRecording");
     [self.recordButton setContentTintColor:[NSColor systemRedColor]];
-    [self appendLog:@"[INFO] Screen recording started\n"];
+    [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedString(@"console.log.recordingStarted")]];
     self.recordTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 target:self selector:@selector(captureRecordFrame) userInfo:nil repeats:YES];
 }
 
@@ -478,10 +478,10 @@ static const NSInteger kSerialPort = 4321;
     self.isRecording = NO;
     [self.recordTimer invalidate];
     self.recordTimer = nil;
-    self.recordButton.title = @"Record";
+    self.recordButton.title = AMLocalizedString(@"console.record");
     [self.recordButton setContentTintColor:[NSColor colorWithWhite:0.9 alpha:1.0]];
     NSInteger frameCount = self.recordedFrames.count;
-    [self appendLog:[NSString stringWithFormat:@"[INFO] Recording stopped (%ld frames captured)\n", (long)frameCount]];
+    [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedStringF(@"console.log.recordingStopped", (long)frameCount)]];
 
     // Save frames as individual PNGs to a folder
     if (frameCount > 0) {
@@ -502,7 +502,7 @@ static const NSInteger kSerialPort = 4321;
             NSString *framePath = [dirPath stringByAppendingPathComponent:[NSString stringWithFormat:@"frame_%05ld.png", (long)i]];
             [pngData writeToFile:framePath atomically:YES];
         }
-        [self appendLog:[NSString stringWithFormat:@"[INFO] Frames saved to: %@\n", dirPath]];
+        [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedStringF(@"console.log.framesSaved", dirPath)]];
     }
     [self.recordedFrames removeAllObjects];
 }
@@ -513,7 +513,7 @@ static const NSInteger kSerialPort = 4321;
     self.splashView.alphaValue = 1.0;
     self.splashView.hidden = NO;
     [self.splashSpinner startAnimation:nil];
-    self.splashSubtitle.stringValue = @"Starting virtual machine...";
+    self.splashSubtitle.stringValue = AMLocalizedString(@"console.starting");
 }
 
 - (void)hideSplash {
@@ -532,33 +532,33 @@ static const NSInteger kSerialPort = 4321;
 - (void)showMediaMenu:(id)sender {
     NSMenu *menu = [[NSMenu alloc] init];
     NSMenuItem *cdromHeader = [[NSMenuItem alloc] init];
-    cdromHeader.title = @"Optical Drive";
+    cdromHeader.title = AMLocalizedString(@"console.opticalDrive");
     cdromHeader.enabled = NO;
     [menu addItem:cdromHeader];
-    [menu addItemWithTitle:@"Change CD-ROM..." action:@selector(changeCDROM:) keyEquivalent:@""];
-    [menu addItemWithTitle:@"Eject CD-ROM" action:@selector(ejectCDROM:) keyEquivalent:@""];
+    [menu addItemWithTitle:AMLocalizedString(@"console.changeCDROM") action:@selector(changeCDROM:) keyEquivalent:@""];
+    [menu addItemWithTitle:AMLocalizedString(@"console.ejectCDROM") action:@selector(ejectCDROM:) keyEquivalent:@""];
     NSArray *opticalDrives = [VMStartVirtualMachine physicalOpticalDrives];
     if (opticalDrives.count > 0) {
         [menu addItem:[NSMenuItem separatorItem]];
         for (NSString *drive in opticalDrives) {
-            NSMenuItem *item = [menu addItemWithTitle:[NSString stringWithFormat:@"Physical: %@", drive] action:@selector(usePhysicalOptical:) keyEquivalent:@""];
+            NSMenuItem *item = [menu addItemWithTitle:AMLocalizedStringF(@"console.physicalDrive", drive) action:@selector(usePhysicalOptical:) keyEquivalent:@""];
             item.representedObject = drive;
         }
     }
     [menu addItem:[NSMenuItem separatorItem]];
     NSMenuItem *floppyHeader = [[NSMenuItem alloc] init];
-    floppyHeader.title = @"Floppy Drives";
+    floppyHeader.title = AMLocalizedString(@"console.floppyDrives");
     floppyHeader.enabled = NO;
     [menu addItem:floppyHeader];
-    [menu addItemWithTitle:@"Change Floppy A..." action:@selector(changeFloppyA:) keyEquivalent:@""];
-    [menu addItemWithTitle:@"Eject Floppy A" action:@selector(ejectFloppyA:) keyEquivalent:@""];
-    [menu addItemWithTitle:@"Change Floppy B..." action:@selector(changeFloppyB:) keyEquivalent:@""];
-    [menu addItemWithTitle:@"Eject Floppy B" action:@selector(ejectFloppyB:) keyEquivalent:@""];
+    [menu addItemWithTitle:AMLocalizedString(@"console.changeFloppyA") action:@selector(changeFloppyA:) keyEquivalent:@""];
+    [menu addItemWithTitle:AMLocalizedString(@"console.ejectFloppyA") action:@selector(ejectFloppyA:) keyEquivalent:@""];
+    [menu addItemWithTitle:AMLocalizedString(@"console.changeFloppyB") action:@selector(changeFloppyB:) keyEquivalent:@""];
+    [menu addItemWithTitle:AMLocalizedString(@"console.ejectFloppyB") action:@selector(ejectFloppyB:) keyEquivalent:@""];
     NSArray *floppyDrives = [VMStartVirtualMachine physicalFloppyDrives];
     if (floppyDrives.count > 0) {
         [menu addItem:[NSMenuItem separatorItem]];
         for (NSString *drive in floppyDrives) {
-            NSMenuItem *item = [menu addItemWithTitle:[NSString stringWithFormat:@"Physical: %@", drive] action:@selector(usePhysicalFloppy:) keyEquivalent:@""];
+            NSMenuItem *item = [menu addItemWithTitle:AMLocalizedStringF(@"console.physicalDrive", drive) action:@selector(usePhysicalFloppy:) keyEquivalent:@""];
             item.representedObject = drive;
         }
     }
@@ -574,7 +574,7 @@ static const NSInteger kSerialPort = 4321;
 - (void)changeCDROM:(id)sender {
     [self openMediaPickerForExtensions:@[@"iso", @"img", @"bin", @"raw"] completion:^(NSString *path) {
         [self.qemuProcess sendMonitorCommand:[NSString stringWithFormat:@"change cdrom %@", path] completion:^(NSString *result) {
-            [self appendLog:[NSString stringWithFormat:@"[INFO] CD-ROM changed: %@\n", path]];
+            [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedStringF(@"console.log.cdromChanged", path)]];
             self.virtualMachine.cdromImagePath = path;
         }];
     }];
@@ -582,7 +582,7 @@ static const NSInteger kSerialPort = 4321;
 
 - (void)ejectCDROM:(id)sender {
     [self.qemuProcess sendMonitorCommand:@"eject cdrom" completion:^(NSString *result) {
-        [self appendLog:@"[INFO] CD-ROM ejected\n"];
+        [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedString(@"console.log.cdromEjected")]];
         self.virtualMachine.cdromImagePath = @"";
     }];
 }
@@ -591,7 +591,7 @@ static const NSInteger kSerialPort = 4321;
     NSString *drive = ((NSMenuItem *)sender).representedObject;
     if (drive.length > 0) {
         [self.qemuProcess sendMonitorCommand:[NSString stringWithFormat:@"change cdrom %@", drive] completion:^(NSString *result) {
-            [self appendLog:[NSString stringWithFormat:@"[INFO] Physical optical: %@\n", drive]];
+            [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedStringF(@"console.log.physicalOptical", drive)]];
         }];
     }
 }
@@ -599,7 +599,7 @@ static const NSInteger kSerialPort = 4321;
 - (void)changeFloppyA:(id)sender {
     [self openMediaPickerForExtensions:@[@"ima", @"img", @"flp", @"dsk", @"vfd", @"bin", @"raw"] completion:^(NSString *path) {
         [self.qemuProcess sendMonitorCommand:[NSString stringWithFormat:@"change floppy %@", path] completion:^(NSString *result) {
-            [self appendLog:[NSString stringWithFormat:@"[INFO] Floppy A: %@\n", path]];
+            [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedStringF(@"console.log.floppyAChanged", path)]];
             self.virtualMachine.floppyAPath = path;
         }];
     }];
@@ -607,7 +607,7 @@ static const NSInteger kSerialPort = 4321;
 
 - (void)ejectFloppyA:(id)sender {
     [self.qemuProcess sendMonitorCommand:@"eject floppy" completion:^(NSString *result) {
-        [self appendLog:@"[INFO] Floppy A ejected\n"];
+        [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedString(@"console.log.floppyAEjected")]];
         self.virtualMachine.floppyAPath = @"";
     }];
 }
@@ -615,7 +615,7 @@ static const NSInteger kSerialPort = 4321;
 - (void)changeFloppyB:(id)sender {
     [self openMediaPickerForExtensions:@[@"ima", @"img", @"flp", @"dsk", @"vfd", @"bin", @"raw"] completion:^(NSString *path) {
         [self.qemuProcess sendMonitorCommand:[NSString stringWithFormat:@"change floppy1 %@", path] completion:^(NSString *result) {
-            [self appendLog:[NSString stringWithFormat:@"[INFO] Floppy B: %@\n", path]];
+            [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedStringF(@"console.log.floppyBChanged", path)]];
             self.virtualMachine.floppyBPath = path;
         }];
     }];
@@ -623,7 +623,7 @@ static const NSInteger kSerialPort = 4321;
 
 - (void)ejectFloppyB:(id)sender {
     [self.qemuProcess sendMonitorCommand:@"eject floppy1" completion:^(NSString *result) {
-        [self appendLog:@"[INFO] Floppy B ejected\n"];
+        [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedString(@"console.log.floppyBEjected")]];
         self.virtualMachine.floppyBPath = @"";
     }];
 }
@@ -632,7 +632,7 @@ static const NSInteger kSerialPort = 4321;
     NSString *drive = ((NSMenuItem *)sender).representedObject;
     if (drive.length > 0) {
         [self.qemuProcess sendMonitorCommand:[NSString stringWithFormat:@"change floppy %@", drive] completion:^(NSString *result) {
-            [self appendLog:[NSString stringWithFormat:@"[INFO] Physical floppy: %@\n", drive]];
+            [self appendLog:[NSString stringWithFormat:@"[INFO] %@\n", AMLocalizedStringF(@"console.log.physicalFloppy", drive)]];
         }];
     }
 }
@@ -642,7 +642,7 @@ static const NSInteger kSerialPort = 4321;
     panel.canChooseFiles = YES;
     panel.canChooseDirectories = NO;
     panel.allowsMultipleSelection = NO;
-    panel.title = @"Select Media File";
+    panel.title = AMLocalizedString(@"console.selectMedia");
     if (extensions.count > 0) {
         NSMutableArray *types = [NSMutableArray array];
         for (NSString *ext in extensions) {
@@ -672,16 +672,16 @@ static const NSInteger kSerialPort = 4321;
 
 - (void)qemuProcessDidStart:(id)sender {
     [self hideSplash];
-    [self appendLog:@"Virtual machine started\n"];
-    self.statusBar.stringValue = @"Running";
-    self.startStopButton.title = @"Stop";
+    [self appendLog:[AMLocalizedString(@"console.started") stringByAppendingString:@"\n"]];
+    self.statusBar.stringValue = AMLocalizedString(@"status.running");
+    self.startStopButton.title = AMLocalizedString(@"console.stop");
     self.pauseResumeButton.enabled = YES;
     self.screenshotButton.enabled = YES;
 
     // Connect VNC viewer (delayed to let QEMU start listening)
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [self.vncViewer connectWithHost:@"127.0.0.1" port:kVNCPort];
-        [self appendLog:[NSString stringWithFormat:@"[VNC] Connecting to 127.0.0.1:%ld...\n", (long)kVNCPort]];
+        [self appendLog:[NSString stringWithFormat:@"[VNC] %@\n", AMLocalizedStringF(@"console.log.vncConnecting", @"127.0.0.1", (long)kVNCPort)]];
     });
 
     // Connect serial terminal
@@ -690,12 +690,12 @@ static const NSInteger kSerialPort = 4321;
     });
 
     self.vncViewer.onConnected = ^{
-        [self appendLog:@"[VNC] Display connected\n"];
-        self.statusBar.stringValue = [NSString stringWithFormat:@"Running (%dx%d)",
-            self.vncViewer.framebufferWidth, self.vncViewer.framebufferHeight];
+        [self appendLog:[NSString stringWithFormat:@"[VNC] %@\n", AMLocalizedString(@"console.log.vncConnected")]];
+        self.statusBar.stringValue = AMLocalizedStringF(@"console.runningResolution",
+            (long)self.vncViewer.framebufferWidth, (long)self.vncViewer.framebufferHeight);
     };
     self.vncViewer.onDisconnected = ^{
-        [self appendLog:@"[VNC] Display disconnected\n"];
+        [self appendLog:[NSString stringWithFormat:@"[VNC] %@\n", AMLocalizedString(@"console.log.vncDisconnected")]];
     };
 
     // Start resource monitoring
@@ -703,7 +703,7 @@ static const NSInteger kSerialPort = 4321;
         pid_t vmPid = self.qemuProcess ? (pid_t)self.qemuProcess.processIdentifier : 0;
         if (vmPid > 0) {
             [self.resourceMonitor startMonitoringWithProcessID:vmPid];
-            [self appendLog:[NSString stringWithFormat:@"[Monitor] Tracking PID %d\n", vmPid]];
+            [self appendLog:[NSString stringWithFormat:@"[Monitor] %@\n", AMLocalizedStringF(@"console.log.trackingPID", vmPid)]];
         }
     });
 
@@ -712,14 +712,14 @@ static const NSInteger kSerialPort = 4321;
         self.autoSnapshotCounter = 0;
         NSTimeInterval interval = self.virtualMachine.autoSnapshotInterval;
         self.autoSnapshotTimer = [NSTimer scheduledTimerWithTimeInterval:interval target:self selector:@selector(performAutoSnapshot) userInfo:nil repeats:YES];
-        [self appendLog:[NSString stringWithFormat:@"[Snapshot] Auto-snapshot enabled (every %.0f min)\n", interval / 60.0]];
+        [self appendLog:[NSString stringWithFormat:@"[Snapshot] %@\n", AMLocalizedStringF(@"console.log.autoSnapshotEnabled", interval / 60.0)]];
     }
 }
 
 - (void)qemuProcessDidStop:(id)sender exitCode:(NSInteger)code {
-    [self appendLog:[NSString stringWithFormat:@"Virtual machine stopped (exit code: %ld)\n", (long)code]];
-    self.statusBar.stringValue = @"Stopped";
-    self.startStopButton.title = @"Start";
+    [self appendLog:[AMLocalizedStringF(@"console.stopped", (long)code) stringByAppendingString:@"\n"]];
+    self.statusBar.stringValue = AMLocalizedString(@"status.stopped");
+    self.startStopButton.title = AMLocalizedString(@"console.start");
     self.pauseResumeButton.enabled = NO;
     self.screenshotButton.enabled = NO;
     [self.autoSnapshotTimer invalidate]; self.autoSnapshotTimer = nil;
@@ -774,9 +774,9 @@ static const NSInteger kSerialPort = 4321;
                     [snaps addObject:@{@"name": snapName, @"date": [fmt stringFromDate:[NSDate date]], @"type": @"auto"}];
                     self.virtualMachine.snapshots = snaps;
                     [self.virtualMachine saveToBundle];
-                    [self appendLog:[NSString stringWithFormat:@"[Snapshot] Auto-snapshot saved: %@\n", snapName]];
+                    [self appendLog:[NSString stringWithFormat:@"[Snapshot] %@\n", AMLocalizedStringF(@"console.log.autoSnapshotSaved", snapName)]];
                 } else {
-                    [self appendLog:[NSString stringWithFormat:@"[Snapshot] Auto-snapshot failed: %@\n", result ?: @"unknown error"]];
+                    [self appendLog:[NSString stringWithFormat:@"[Snapshot] %@\n", AMLocalizedStringF(@"console.log.autoSnapshotFailed", result ?: AMLocalizedString(@"console.unknownError"))]];
                 }
             });
         }];

@@ -133,7 +133,7 @@
             AMLocalizedString(@"config.step.storage"),
             AMLocalizedString(@"config.step.media"),
             AMLocalizedString(@"config.step.network"),
-            @"Display & Advanced",
+            AMLocalizedString(@"config.step.displayAdvanced"),
             AMLocalizedString(@"config.step.summary")
         ]];
         [self setupUI];
@@ -221,10 +221,15 @@
 }
 
 - (void)refreshStepSidebar {
-    for (NSView *sub in [self.stepSidebar.subviews copy]) [sub removeFromSuperview];
-    CGFloat y = self.stepSidebar.bounds.size.height - 40;
+    // 只移除步骤标签，保留顶部的模式切换器
+    for (NSView *sub in [self.stepSidebar.subviews copy]) {
+        if (sub.tag == 900) [sub removeFromSuperview];
+    }
+    CGFloat y = self.stepSidebar.bounds.size.height - 76;
     for (NSInteger i = 0; i < self.stepTitles.count; i++) {
         NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(16, y - i * 32, 148, 22)];
+        label.tag = 900;
+        label.autoresizingMask = NSViewMinYMargin;
         label.stringValue = [NSString stringWithFormat:@"%ld. %@", (long)(i + 1), self.stepTitles[i]];
         label.font = [NSFont systemFontOfSize:12 weight:(i == self.currentStep ? NSFontWeightSemibold : NSFontWeightRegular)];
         label.textColor = (i == self.currentStep) ? [NSColor controlAccentColor] : [NSColor secondaryLabelColor];
@@ -303,7 +308,7 @@
     [self addLabel:AMLocalizedString(@"config.architecture") at:NSMakePoint(0, y) toView:view width:120];
     self.archPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(130, y - 2, 360, 26)];
     for (VMStartArchitectureProfile *p in self.profiles) {
-        [self.archPopup addItemWithTitle:[NSString stringWithFormat:@"%@ (%ld-bit)", p.displayName, (long)p.bitWidth]];
+        [self.archPopup addItemWithTitle:p.displayName];
         self.archPopup.lastItem.representedObject = p;
     }
     [self.archPopup setTarget:self];
@@ -311,7 +316,7 @@
     [view addSubview:self.archPopup];
     y -= 56;
 
-    [self addLabel:@"Guest OS" at:NSMakePoint(0, y) toView:view width:120];
+    [self addLabel:AMLocalizedString(@"config.guestOS") at:NSMakePoint(0, y) toView:view width:120];
     self.osPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(130, y - 2, 360, 26)];
     for (NSString *osName in [VMStartVirtualMachine allOSTypeNames]) {
         [self.osPopup addItemWithTitle:osName];
@@ -347,12 +352,12 @@
     y -= 40;
 
     // CPU Sockets
-    [self addLabel:@"Sockets" at:NSMakePoint(0, y) toView:content width:120];
+    [self addLabel:AMLocalizedString(@"config.sockets") at:NSMakePoint(0, y) toView:content width:120];
     self.cpuSocketsPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(130, y - 2, 120, 26)];
     [self.cpuSocketsPopup addItemsWithTitles:@[@"1", @"2", @"4"]];
     [content addSubview:self.cpuSocketsPopup];
     // Cores per socket
-    [self addLabel:@"Cores/Socket" at:NSMakePoint(260, y) toView:content width:90];
+    [self addLabel:AMLocalizedString(@"config.coresPerSocket") at:NSMakePoint(260, y) toView:content width:90];
     self.cpuCoresPerSocketPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(360, y - 2, 80, 26)];
     [self.cpuCoresPerSocketPopup addItemsWithTitles:@[@"1", @"2", @"4", @"8", @"16"]];
     [self.cpuCoresPerSocketPopup selectItemWithTitle:@"2"];
@@ -392,14 +397,14 @@
     y -= 48;
 
     // Disk Controller (SCSI/SATA/NVMe/VirtIO)
-    [self addLabel:@"Disk Controller" at:NSMakePoint(0, y) toView:content width:120];
+    [self addLabel:AMLocalizedString(@"config.diskController") at:NSMakePoint(0, y) toView:content width:120];
     self.diskControllerPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(130, y - 2, 200, 26)];
     [self.diskControllerPopup addItemsWithTitles:@[@"VirtIO", @"SCSI", @"SATA", @"NVMe"]];
     [content addSubview:self.diskControllerPopup];
     y -= 40;
 
     // USB Version
-    [self addLabel:@"USB Controller" at:NSMakePoint(0, y) toView:content width:120];
+    [self addLabel:AMLocalizedString(@"config.usbController") at:NSMakePoint(0, y) toView:content width:120];
     self.usbVersionPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(130, y - 2, 200, 26)];
     [self.usbVersionPopup addItemsWithTitles:@[@"2.0 (EHCI)", @"3.0 (XHCI)", @"3.1 (XHCI)"]];
     [self.usbVersionPopup selectItemWithTitle:@"3.0 (XHCI)"];
@@ -407,14 +412,14 @@
     y -= 40;
 
     // Sound Card Model
-    [self addLabel:@"Sound Card" at:NSMakePoint(0, y) toView:content width:120];
+    [self addLabel:AMLocalizedString(@"config.soundCard") at:NSMakePoint(0, y) toView:content width:120];
     self.soundCardPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(130, y - 2, 200, 26)];
     [self.soundCardPopup addItemsWithTitles:@[@"Intel HDA", @"AC97", @"ES1370 (Ensoniq)", @"Sound Blaster 16"]];
     [content addSubview:self.soundCardPopup];
     y -= 40;
 
     // Virtual TPM
-    self.tpmCheck = [self checkboxAt:NSMakePoint(130, y) title:@"Virtual TPM (for Windows 11 / BitLocker)"];
+    self.tpmCheck = [self checkboxAt:NSMakePoint(130, y) title:AMLocalizedString(@"config.tpm")];
     [content addSubview:self.tpmCheck];
 
     [content setFrameSize:NSMakeSize(content.bounds.size.width, 520)];
@@ -510,15 +515,15 @@
     CGFloat y = view.bounds.size.height - 40;
 
     // Network mode
-    [self addLabel:@"Network" at:NSMakePoint(0, y) toView:view width:120];
+    [self addLabel:AMLocalizedString(@"config.network") at:NSMakePoint(0, y) toView:view width:120];
     self.networkPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(130, y - 2, 360, 26)];
-    [self.networkPopup addItemsWithTitles:@[@"NAT (user)", @"Bridge", @"Host-only", @"Virtual Modem (dial-up)", @"Terminal", @"none"]];
+    [self reloadNetworkPopupSimple:NO];
     [self.networkPopup setTarget:self]; self.networkPopup.action = @selector(networkModeChanged:);
     [view addSubview:self.networkPopup];
     y -= 36;
 
     // Bridge interface (shown when Bridge selected)
-    [self addLabel:@"Bridge NIC" at:NSMakePoint(0, y) toView:view width:120];
+    [self addLabel:AMLocalizedString(@"config.bridgeNIC") at:NSMakePoint(0, y) toView:view width:120];
     self.bridgeInterfaceField = [[NSTextField alloc] initWithFrame:NSMakeRect(130, y - 2, 200, 24)];
     self.bridgeInterfaceField.bezelStyle = NSTextFieldSquareBezel;
     self.bridgeInterfaceField.placeholderString = @"en0";
@@ -527,7 +532,7 @@
     y -= 36;
 
     // Host-only subnet
-    [self addLabel:@"Subnet" at:NSMakePoint(0, y) toView:view width:120];
+    [self addLabel:AMLocalizedString(@"config.subnet") at:NSMakePoint(0, y) toView:view width:120];
     self.subnetField = [[NSTextField alloc] initWithFrame:NSMakeRect(130, y - 2, 200, 24)];
     self.subnetField.bezelStyle = NSTextFieldSquareBezel;
     self.subnetField.stringValue = @"192.168.56.0/24";
@@ -536,13 +541,13 @@
     y -= 36;
 
     // DHCP
-    self.dhcpCheck = [self checkboxAt:NSMakePoint(130, y) title:@"Enable DHCP Server"];
+    self.dhcpCheck = [self checkboxAt:NSMakePoint(130, y) title:AMLocalizedString(@"config.enableDHCP")];
     self.dhcpCheck.state = NSControlStateValueOn;
     self.dhcpCheck.tag = 402;
     [view addSubview:self.dhcpCheck];
     y -= 28;
 
-    [self addLabel:@"DHCP Start" at:NSMakePoint(0, y) toView:view width:120];
+    [self addLabel:AMLocalizedString(@"config.dhcpStart") at:NSMakePoint(0, y) toView:view width:120];
     self.dhcpStartField = [[NSTextField alloc] initWithFrame:NSMakeRect(130, y - 2, 160, 24)];
     self.dhcpStartField.bezelStyle = NSTextFieldSquareBezel;
     self.dhcpStartField.stringValue = @"192.168.56.100";
@@ -550,7 +555,7 @@
     self.dhcpStartField.tag = 403;
     y -= 30;
 
-    [self addLabel:@"DHCP End" at:NSMakePoint(0, y) toView:view width:120];
+    [self addLabel:AMLocalizedString(@"config.dhcpEnd") at:NSMakePoint(0, y) toView:view width:120];
     self.dhcpEndField = [[NSTextField alloc] initWithFrame:NSMakeRect(130, y - 2, 160, 24)];
     self.dhcpEndField.bezelStyle = NSTextFieldSquareBezel;
     self.dhcpEndField.stringValue = @"192.168.56.254";
@@ -559,18 +564,18 @@
     y -= 36;
 
     // IPv6
-    self.ipv6Check = [self checkboxAt:NSMakePoint(130, y) title:@"Enable IPv6 Support"];
+    self.ipv6Check = [self checkboxAt:NSMakePoint(130, y) title:AMLocalizedString(@"config.enableIPv6")];
     self.ipv6Check.state = NSControlStateValueOn;
     [view addSubview:self.ipv6Check];
     y -= 40;
 
     // Virtual modem options (Advanced mode)
-    self.modemCheck = [self checkboxAt:NSMakePoint(130, y) title:@"Enable virtual modem emulation"];
+    self.modemCheck = [self checkboxAt:NSMakePoint(130, y) title:AMLocalizedString(@"config.enableModem")];
     self.modemCheck.tag = 500;
     [view addSubview:self.modemCheck];
     y -= 28;
 
-    [self addLabel:@"Modem speed" at:NSMakePoint(0, y) toView:view width:120];
+    [self addLabel:AMLocalizedString(@"config.modemSpeed") at:NSMakePoint(0, y) toView:view width:120];
     self.modemSpeedPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(130, y - 2, 200, 26)];
     [self.modemSpeedPopup addItemsWithTitles:@[@"56000 bps", @"33600 bps", @"28800 bps", @"14400 bps", @"9600 bps"]];
     self.modemSpeedPopup.tag = 501;
@@ -578,40 +583,43 @@
     y -= 40;
 
     // Terminal networking (Advanced mode)
-    self.terminalCheck = [self checkboxAt:NSMakePoint(130, y) title:@"Connect to host terminal (serial)"];
+    self.terminalCheck = [self checkboxAt:NSMakePoint(130, y) title:AMLocalizedString(@"config.hostTerminal")];
     self.terminalCheck.tag = 502;
     [view addSubview:self.terminalCheck];
     y -= 40;
 
     // Display
-    [self addLabel:@"Display" at:NSMakePoint(0, y) toView:view width:120];
+    [self addLabel:AMLocalizedString(@"config.display") at:NSMakePoint(0, y) toView:view width:120];
     self.displayPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(130, y - 2, 360, 26)];
-    [self.displayPopup addItemsWithTitles:@[@"cocoa", @"none", @"vnc"]];
+    // 标题仅用于显示，原始值存放在 representedObject
+    [self addItemToPopup:self.displayPopup title:@"cocoa" value:@"cocoa"];
+    [self addItemToPopup:self.displayPopup title:AMLocalizedString(@"detail.none") value:@"none"];
+    [self addItemToPopup:self.displayPopup title:@"vnc" value:@"vnc"];
     [view addSubview:self.displayPopup];
     y -= 36;
 
     // Feature toggles
-    self.accelCheck = [self checkboxAt:NSMakePoint(130, y) title:@"Hardware Acceleration"];
+    self.accelCheck = [self checkboxAt:NSMakePoint(130, y) title:AMLocalizedString(@"config.acceleration")];
     self.accelCheck.state = NSControlStateValueOn;
     [view addSubview:self.accelCheck];
     y -= 28;
-    self.audioCheck = [self checkboxAt:NSMakePoint(130, y) title:@"Audio"];
+    self.audioCheck = [self checkboxAt:NSMakePoint(130, y) title:AMLocalizedString(@"config.audio")];
     self.audioCheck.state = NSControlStateValueOn;
     [view addSubview:self.audioCheck];
     y -= 28;
-    self.usbCheck = [self checkboxAt:NSMakePoint(130, y) title:@"USB Support"];
+    self.usbCheck = [self checkboxAt:NSMakePoint(130, y) title:AMLocalizedString(@"config.usb")];
     self.usbCheck.state = NSControlStateValueOn;
     [view addSubview:self.usbCheck];
     y -= 28;
 
     // Unity/Fusion mode
-    self.unityCheck = [self checkboxAt:NSMakePoint(130, y) title:@"Unity/Fusion Mode (run VM apps alongside host)"];
+    self.unityCheck = [self checkboxAt:NSMakePoint(130, y) title:AMLocalizedString(@"config.unityMode")];
     [view addSubview:self.unityCheck];
     y -= 44;
 
     // Shared folders section
     NSTextField *sfTitle = [[NSTextField alloc] initWithFrame:NSMakeRect(0, y, 200, 20)];
-    sfTitle.stringValue = @"Shared Folders";
+    sfTitle.stringValue = AMLocalizedString(@"config.sharedFolders");
     sfTitle.font = [NSFont boldSystemFontOfSize:13];
     sfTitle.textColor = [NSColor secondaryLabelColor];
     sfTitle.bezeled = NO; sfTitle.drawsBackground = NO; sfTitle.editable = NO;
@@ -623,8 +631,8 @@
     self.sharedFolderScroll.autoresizingMask = NSViewWidthSizable | NSViewMaxYMargin;
     self.sharedFolderTable = [[NSTableView alloc] initWithFrame:self.sharedFolderScroll.contentView.bounds];
     self.sharedFolderTable.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-    [self.sharedFolderTable addTableColumn:[self tableColumnWithIdentifier:@"name" title:@"Name" width:120]];
-    [self.sharedFolderTable addTableColumn:[self tableColumnWithIdentifier:@"hostPath" title:@"Path" width:240]];
+    [self.sharedFolderTable addTableColumn:[self tableColumnWithIdentifier:@"name" title:AMLocalizedString(@"config.folderName") width:120]];
+    [self.sharedFolderTable addTableColumn:[self tableColumnWithIdentifier:@"hostPath" title:AMLocalizedString(@"config.folderPath") width:240]];
     self.sharedFolderTable.headerView = nil;
     self.sharedFolderTable.dataSource = self;
     self.sharedFolderTable.delegate = self;
@@ -632,12 +640,12 @@
     [view addSubview:self.sharedFolderScroll];
 
     NSButton *addBtn = [[NSButton alloc] initWithFrame:NSMakeRect(130, y - 32, 80, 24)];
-    addBtn.title = @"Add";
+    addBtn.title = AMLocalizedString(@"config.addFolder");
     addBtn.bezelStyle = NSBezelStyleRounded;
     addBtn.target = self; addBtn.action = @selector(addSharedFolder:);
     [view addSubview:addBtn];
     NSButton *removeBtn = [[NSButton alloc] initWithFrame:NSMakeRect(220, y - 32, 80, 24)];
-    removeBtn.title = @"Remove";
+    removeBtn.title = AMLocalizedString(@"config.removeFolder");
     removeBtn.bezelStyle = NSBezelStyleRounded;
     removeBtn.target = self; removeBtn.action = @selector(removeSharedFolder:);
     [view addSubview:removeBtn];
@@ -645,20 +653,20 @@
     // Port forwarding section
     y -= 50;
     NSTextField *pfTitle = [[NSTextField alloc] initWithFrame:NSMakeRect(0, y, 200, 20)];
-    pfTitle.stringValue = @"Port Forwarding";
+    pfTitle.stringValue = AMLocalizedString(@"config.portForwarding");
     pfTitle.font = [NSFont boldSystemFontOfSize:13];
     pfTitle.textColor = [NSColor secondaryLabelColor];
     pfTitle.bezeled = NO; pfTitle.drawsBackground = NO; pfTitle.editable = NO;
     [view addSubview:pfTitle];
     y -= 28;
 
-    [self addLabel:@"Rules" at:NSMakePoint(0, y) toView:view width:120];
+    [self addLabel:AMLocalizedString(@"config.pfRules") at:NSMakePoint(0, y) toView:view width:120];
     self.portForwardField = [[NSTextField alloc] initWithFrame:NSMakeRect(130, y - 2, 260, 24)];
     self.portForwardField.bezelStyle = NSTextFieldSquareBezel;
-    self.portForwardField.placeholderString = @"tcp:2222:22, tcp:8080:80";
+    self.portForwardField.placeholderString = AMLocalizedString(@"config.portForwarding.placeholder");
     [view addSubview:self.portForwardField];
     NSButton *pfParseBtn = [[NSButton alloc] initWithFrame:NSMakeRect(400, y - 2, 80, 24)];
-    pfParseBtn.title = @"Apply";
+    pfParseBtn.title = AMLocalizedString(@"config.apply");
     pfParseBtn.bezelStyle = NSBezelStyleRounded;
     pfParseBtn.target = self; pfParseBtn.action = @selector(parsePortForwards:);
     [view addSubview:pfParseBtn];
@@ -670,9 +678,9 @@
 }
 
 - (void)networkModeChanged:(id)sender {
-    NSString *mode = self.networkPopup.titleOfSelectedItem;
-    BOOL isBridge = [mode containsString:@"Bridge"];
-    BOOL isHostOnly = [mode containsString:@"Host-only"];
+    NSString *mode = self.networkPopup.selectedItem.representedObject;
+    BOOL isBridge = [mode isEqualToString:@"bridge"];
+    BOOL isHostOnly = [mode isEqualToString:@"host-only"];
     self.bridgeInterfaceField.hidden = !isBridge;
     self.subnetField.hidden = !isHostOnly;
     self.dhcpCheck.hidden = !isHostOnly;
@@ -700,15 +708,57 @@
 
     // In Simple mode, limit network to NAT/bridge/none
     if (isSimple && self.networkPopup) {
-        NSString *current = self.networkPopup.titleOfSelectedItem;
-        [self.networkPopup removeAllItems];
-        [self.networkPopup addItemsWithTitles:@[@"NAT (user)", @"Bridge", @"none"]];
-        if (current && [@[@"NAT (user)", @"Bridge", @"none"] containsObject:current]) {
-            [self.networkPopup selectItemWithTitle:current];
-        }
+        [self reloadNetworkPopupSimple:YES];
     } else if (!isSimple && self.networkPopup && self.networkPopup.numberOfItems <= 3) {
-        [self.networkPopup removeAllItems];
-        [self.networkPopup addItemsWithTitles:@[@"NAT (user)", @"Bridge", @"Host-only", @"Virtual Modem (dial-up)", @"Terminal", @"none"]];
+        [self reloadNetworkPopupSimple:NO];
+    }
+}
+
+// 网络模式弹出菜单：标题为本地化文本，representedObject 为持久化的原始值
+- (void)reloadNetworkPopupSimple:(BOOL)simple {
+    NSString *current = self.networkPopup.selectedItem.representedObject;
+    NSArray<NSString *> *modes = simple
+        ? @[@"user", @"bridge", @"none"]
+        : @[@"user", @"bridge", @"host-only", @"modem", @"terminal", @"none"];
+    NSDictionary<NSString *, NSString *> *titles = @{
+        @"user": AMLocalizedString(@"network_nat"),
+        @"bridge": AMLocalizedString(@"network_bridge"),
+        @"host-only": AMLocalizedString(@"network_hostonly"),
+        @"modem": AMLocalizedString(@"network_modem"),
+        @"terminal": AMLocalizedString(@"network_terminal"),
+        @"none": AMLocalizedString(@"network_none")
+    };
+    [self.networkPopup removeAllItems];
+    for (NSString *mode in modes) {
+        [self addItemToPopup:self.networkPopup title:titles[mode] value:mode];
+    }
+    if (current) [self selectItemInPopup:self.networkPopup withValue:current];
+}
+
+// 兼容旧数据：将任意已保存的网络模式字符串映射为原始值
+- (NSString *)normalizedNetworkMode:(NSString *)mode {
+    if (mode.length == 0) return @"user";
+    NSString *m = mode.lowercaseString;
+    if ([m containsString:@"bridge"]) return @"bridge";
+    if ([m containsString:@"host-only"]) return @"host-only";
+    if ([m containsString:@"modem"]) return @"modem";
+    if ([m containsString:@"terminal"]) return @"terminal";
+    if ([m containsString:@"none"]) return @"none";
+    return @"user";
+}
+
+- (void)addItemToPopup:(NSPopUpButton *)popup title:(NSString *)title value:(id)value {
+    [popup addItemWithTitle:title];
+    popup.lastItem.representedObject = value;
+}
+
+- (void)selectItemInPopup:(NSPopUpButton *)popup withValue:(id)value {
+    if (!popup || !value) return;
+    for (NSMenuItem *item in popup.itemArray) {
+        if ([item.representedObject isEqual:value]) {
+            [popup selectItem:item];
+            return;
+        }
     }
 }
 
@@ -744,19 +794,19 @@
 
     // === Display Section ===
     NSTextField *secTitle1 = [[NSTextField alloc] initWithFrame:NSMakeRect(0, y, 200, 20)];
-    secTitle1.stringValue = @"Display"; secTitle1.font = [NSFont boldSystemFontOfSize:13];
+    secTitle1.stringValue = AMLocalizedString(@"config.section.display"); secTitle1.font = [NSFont boldSystemFontOfSize:13];
     secTitle1.textColor = [NSColor secondaryLabelColor];
     secTitle1.bezeled = NO; secTitle1.drawsBackground = NO; secTitle1.editable = NO;
     [v addSubview:secTitle1];
     y -= 30;
 
     // 3D Acceleration
-    self.accel3DCheck = [self checkboxAt:NSMakePoint(20, y) title:@"3D Hardware Acceleration (OpenGL/Vulkan)"];
+    self.accel3DCheck = [self checkboxAt:NSMakePoint(20, y) title:AMLocalizedString(@"config.accel3D")];
     [v addSubview:self.accel3DCheck];
     y -= 30;
 
     // VRAM slider
-    [self addLabel:@"VRAM" at:NSMakePoint(0, y) toView:v width:120];
+    [self addLabel:AMLocalizedString(@"config.vram") at:NSMakePoint(0, y) toView:v width:120];
     self.vramSlider = [[NSSlider alloc] initWithFrame:NSMakeRect(130, y, 250, 24)];
     self.vramSlider.minValue = 16; self.vramSlider.maxValue = 512; self.vramSlider.integerValue = 128;
     self.vramSlider.target = self; self.vramSlider.action = @selector(vramSliderChanged:);
@@ -768,61 +818,61 @@
     y -= 36;
 
     // Multi-monitor
-    [self addLabel:@"Monitors" at:NSMakePoint(0, y) toView:v width:120];
+    [self addLabel:AMLocalizedString(@"config.monitors") at:NSMakePoint(0, y) toView:v width:120];
     self.monitorPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(130, y - 2, 80, 26)];
     [self.monitorPopup addItemsWithTitles:@[@"1", @"2", @"3", @"4"]];
     [v addSubview:self.monitorPopup];
     y -= 36;
 
     // HiDPI
-    self.hidpiCheck = [self checkboxAt:NSMakePoint(20, y) title:@"HiDPI / Retina Scaling"];
+    self.hidpiCheck = [self checkboxAt:NSMakePoint(20, y) title:AMLocalizedString(@"config.hidpi")];
     self.hidpiCheck.state = NSControlStateValueOn;
     [v addSubview:self.hidpiCheck];
     y -= 30;
 
     // Parallel port
-    self.parallelCheck = [self checkboxAt:NSMakePoint(20, y) title:@"Parallel Port"];
+    self.parallelCheck = [self checkboxAt:NSMakePoint(20, y) title:AMLocalizedString(@"config.parallelPort")];
     [v addSubview:self.parallelCheck];
     y -= 44;
 
     // === Sharing & Integration ===
     NSTextField *secTitle2 = [[NSTextField alloc] initWithFrame:NSMakeRect(0, y, 200, 20)];
-    secTitle2.stringValue = @"Sharing & Integration";
+    secTitle2.stringValue = AMLocalizedString(@"config.section.sharing");
     secTitle2.font = [NSFont boldSystemFontOfSize:13];
     secTitle2.textColor = [NSColor secondaryLabelColor];
     secTitle2.bezeled = NO; secTitle2.drawsBackground = NO; secTitle2.editable = NO;
     [v addSubview:secTitle2];
     y -= 30;
 
-    self.sharedClipboardCheck = [self checkboxAt:NSMakePoint(20, y) title:@"Shared Clipboard (Host \u2194 Guest)"];
+    self.sharedClipboardCheck = [self checkboxAt:NSMakePoint(20, y) title:AMLocalizedString(@"config.sharedClipboard")];
     self.sharedClipboardCheck.state = NSControlStateValueOn;
     [v addSubview:self.sharedClipboardCheck];
     y -= 28;
 
-    self.dragDropCheck = [self checkboxAt:NSMakePoint(20, y) title:@"Drag & Drop (Host \u2194 Guest)"];
+    self.dragDropCheck = [self checkboxAt:NSMakePoint(20, y) title:AMLocalizedString(@"config.dragDrop")];
     [v addSubview:self.dragDropCheck];
     y -= 28;
 
-    self.timeSyncCheck = [self checkboxAt:NSMakePoint(20, y) title:@"Guest Time Synchronization"];
+    self.timeSyncCheck = [self checkboxAt:NSMakePoint(20, y) title:AMLocalizedString(@"config.timeSync")];
     self.timeSyncCheck.state = NSControlStateValueOn;
     [v addSubview:self.timeSyncCheck];
     y -= 44;
 
     // === Snapshots & Performance ===
     NSTextField *secTitle3 = [[NSTextField alloc] initWithFrame:NSMakeRect(0, y, 200, 20)];
-    secTitle3.stringValue = @"Snapshots & Performance";
+    secTitle3.stringValue = AMLocalizedString(@"config.section.snapshots");
     secTitle3.font = [NSFont boldSystemFontOfSize:13];
     secTitle3.textColor = [NSColor secondaryLabelColor];
     secTitle3.bezeled = NO; secTitle3.drawsBackground = NO; secTitle3.editable = NO;
     [v addSubview:secTitle3];
     y -= 30;
 
-    self.autoSnapshotCheck = [self checkboxAt:NSMakePoint(20, y) title:@"Auto Snapshot (SmartGuard)"];
+    self.autoSnapshotCheck = [self checkboxAt:NSMakePoint(20, y) title:AMLocalizedString(@"config.autoSnapshot")];
     self.autoSnapshotCheck.target = self; self.autoSnapshotCheck.action = @selector(autoSnapshotToggled:);
     [v addSubview:self.autoSnapshotCheck];
     y -= 30;
 
-    [self addLabel:@"Interval (min)" at:NSMakePoint(0, y) toView:v width:120];
+    [self addLabel:AMLocalizedString(@"config.snapshotInterval") at:NSMakePoint(0, y) toView:v width:120];
     self.autoSnapshotIntervalField = [[NSTextField alloc] initWithFrame:NSMakeRect(130, y - 2, 80, 24)];
     self.autoSnapshotIntervalField.bezelStyle = NSTextFieldSquareBezel;
     self.autoSnapshotIntervalField.integerValue = 60;
@@ -830,14 +880,16 @@
     [v addSubview:self.autoSnapshotIntervalField];
     y -= 36;
 
-    self.encryptCheck = [self checkboxAt:NSMakePoint(20, y) title:@"Encrypt VM (AES-256)"];
+    self.encryptCheck = [self checkboxAt:NSMakePoint(20, y) title:AMLocalizedString(@"config.encrypt")];
     [v addSubview:self.encryptCheck];
     y -= 36;
 
-    [self addLabel:@"Performance" at:NSMakePoint(0, y) toView:v width:120];
+    [self addLabel:AMLocalizedString(@"config.performance") at:NSMakePoint(0, y) toView:v width:120];
     self.performancePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(130, y - 2, 200, 26)];
-    [self.performancePopup addItemsWithTitles:@[@"Power Save", @"Balanced", @"High Performance"]];
-    [self.performancePopup selectItemWithTitle:@"Balanced"];
+    [self addItemToPopup:self.performancePopup title:AMLocalizedString(@"config.perf.powerSave") value:@"power-save"];
+    [self addItemToPopup:self.performancePopup title:AMLocalizedString(@"config.perf.balanced") value:@"balanced"];
+    [self addItemToPopup:self.performancePopup title:AMLocalizedString(@"config.perf.high") value:@"performance"];
+    [self selectItemInPopup:self.performancePopup withValue:@"balanced"];
     [v addSubview:self.performancePopup];
 
     [v setFrameSize:NSMakeSize(v.bounds.size.width, 560)];
@@ -865,32 +917,33 @@
 }
 
 - (void)refreshSummary {
-    NSString *osName = self.osPopup.titleOfSelectedItem ?: @"Other";
+    NSString *osName = self.osPopup.titleOfSelectedItem ?: AMLocalizedString(@"config.osOther");
     NSString *machine = self.machinePopup.titleOfSelectedItem ?: @"default";
     VMStartEngineType engineType = [VMStartEngineSelector engineTypeForMachine:machine];
     NSString *engineName = [VMStartEngineSelector nameForEngineType:engineType];
     NSString *disk = [self.diskUnitPopup.titleOfSelectedItem isEqualToString:AMLocalizedString(@"config.noDisk")]
         ? AMLocalizedString(@"config.noDisk")
         : [NSString stringWithFormat:@"%ld %@", (long)self.diskField.integerValue, self.diskUnitPopup.titleOfSelectedItem];
+    NSString *on = AMLocalizedString(@"config.on");
+    NSString *off = AMLocalizedString(@"config.off");
 
-    NSString *summary = [NSString stringWithFormat:
-        @"%@: %@\n%@: %@\n%@: %@\n%@: %@\n%@: %ld\n%@: %ld %@\n%@: %@\n%@: %@\n%@: %@\n%@: %@\n%@: %@\n%@: %@\n%@: %@",
-        AMLocalizedString(@"config.vmName"), self.nameField.stringValue,
-        AMLocalizedString(@"config.architecture"), self.archPopup.titleOfSelectedItem,
-        @"Guest OS", osName,
-        AMLocalizedString(@"config.machine"), machine,
-        AMLocalizedString(@"config.cpu"), self.cpuPopup.titleOfSelectedItem,
-        AMLocalizedString(@"config.cpuCores"), (long)self.cpuSlider.integerValue,
-        AMLocalizedString(@"config.memory"), (long)self.memoryField.integerValue, self.memoryUnitPopup.titleOfSelectedItem,
-        AMLocalizedString(@"config.diskSize"), disk,
-        AMLocalizedString(@"config.network"), self.networkPopup.titleOfSelectedItem,
-        AMLocalizedString(@"config.display"), self.displayPopup.titleOfSelectedItem,
-        AMLocalizedString(@"config.acceleration"), (self.accelCheck.state == NSControlStateValueOn) ? @"On" : @"Off",
-        AMLocalizedString(@"config.audio"), (self.audioCheck.state == NSControlStateValueOn) ? @"On" : @"Off",
-        AMLocalizedString(@"config.usb"), (self.usbCheck.state == NSControlStateValueOn) ? @"On" : @"Off",
-        AMLocalizedString(@"config.engine"), engineName
+    NSArray<NSString *> *lines = @[
+        AMLocalizedStringF(@"config.summary.name", self.nameField.stringValue ?: @""),
+        AMLocalizedStringF(@"config.summary.architecture", self.archPopup.titleOfSelectedItem ?: @""),
+        AMLocalizedStringF(@"config.summary.guestOS", osName),
+        AMLocalizedStringF(@"config.summary.machine", machine),
+        AMLocalizedStringF(@"config.summary.cpu", self.cpuPopup.titleOfSelectedItem.length ? self.cpuPopup.titleOfSelectedItem : @"default"),
+        AMLocalizedStringF(@"config.summary.cpuCores", (long)self.cpuSlider.integerValue),
+        AMLocalizedStringF(@"config.summary.memory", (long)self.memoryField.integerValue, self.memoryUnitPopup.titleOfSelectedItem ?: @""),
+        AMLocalizedStringF(@"config.summary.disk", disk ?: @""),
+        AMLocalizedStringF(@"config.summary.network", self.networkPopup.titleOfSelectedItem ?: @""),
+        AMLocalizedStringF(@"config.summary.display", self.displayPopup.titleOfSelectedItem ?: @""),
+        AMLocalizedStringF(@"config.summary.acceleration", (self.accelCheck.state == NSControlStateValueOn) ? on : off),
+        AMLocalizedStringF(@"config.summary.audio", (self.audioCheck.state == NSControlStateValueOn) ? on : off),
+        AMLocalizedStringF(@"config.summary.usb", (self.usbCheck.state == NSControlStateValueOn) ? on : off),
+        AMLocalizedStringF(@"config.summary.engine", engineName ?: @"")
     ];
-    self.summaryView.string = summary;
+    self.summaryView.string = [lines componentsJoinedByString:@"\n"];
 }
 
 #pragma mark - UI Helpers
@@ -988,8 +1041,8 @@
     if (self.virtualMachine.floppyBPath.length > 0) self.floppyBField.stringValue = self.virtualMachine.floppyBPath;
     if (self.virtualMachine.romFilePath.length > 0) self.romField.stringValue = self.virtualMachine.romFilePath;
     self.sharedFoldersList = [self.virtualMachine.sharedFolders mutableCopy] ?: [NSMutableArray array];
-    [self.networkPopup selectItemWithTitle:self.virtualMachine.networkMode ?: @"NAT (user)"];
-    [self.displayPopup selectItemWithTitle:self.virtualMachine.displayType];
+    [self selectItemInPopup:self.networkPopup withValue:[self normalizedNetworkMode:self.virtualMachine.networkMode]];
+    [self selectItemInPopup:self.displayPopup withValue:self.virtualMachine.displayType];
     // Network advanced fields
     if (self.bridgeInterfaceField && self.virtualMachine.bridgeInterface.length > 0)
         self.bridgeInterfaceField.stringValue = self.virtualMachine.bridgeInterface;
@@ -1036,10 +1089,10 @@
     if (self.autoSnapshotCheck) self.autoSnapshotCheck.state = self.virtualMachine.enableAutoSnapshot ? NSControlStateValueOn : NSControlStateValueOff;
     if (self.autoSnapshotIntervalField) self.autoSnapshotIntervalField.integerValue = self.virtualMachine.autoSnapshotInterval;
     if (self.encryptCheck) self.encryptCheck.state = self.virtualMachine.isEncrypted ? NSControlStateValueOn : NSControlStateValueOff;
-    NSDictionary *perfMap = @{@"power-save": @"Power Save", @"balanced": @"Balanced", @"performance": @"High Performance"};
     if (self.performancePopup) {
-        NSString *perfTitle = perfMap[self.virtualMachine.performanceProfile ?: @"balanced"] ?: @"Balanced";
-        [self.performancePopup selectItemWithTitle:perfTitle];
+        NSString *perf = self.virtualMachine.performanceProfile ?: @"balanced";
+        if (![@[@"power-save", @"balanced", @"performance"] containsObject:perf]) perf = @"balanced";
+        [self selectItemInPopup:self.performancePopup withValue:perf];
     }
     [self updateUIForCurrentMachine];
 }
@@ -1260,7 +1313,7 @@
     }
 
     self.networkPopup.enabled = networkAvail;
-    if (!networkAvail) [self.networkPopup selectItemWithTitle:@"none"];
+    if (!networkAvail) [self selectItemInPopup:self.networkPopup withValue:@"none"];
     self.usbCheck.enabled = usbAvail;
     if (!usbAvail) self.usbCheck.state = NSControlStateValueOff;
     self.accelCheck.enabled = hvfAvail;
@@ -1273,7 +1326,7 @@
     if (!biosAvail) self.biosField.stringValue = @"";
     self.sharedFolderScroll.hidden = !sharedAvail;
     self.displayPopup.enabled = displayAvail;
-    if (!displayAvail) [self.displayPopup selectItemWithTitle:@"none"];
+    if (!displayAvail) [self selectItemInPopup:self.displayPopup withValue:@"none"];
 }
 
 - (void)existingDiskToggled:(id)sender {
@@ -1385,9 +1438,11 @@
     }
     self.virtualMachine.portForwards = rules;
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = @"Port Forwarding";
-    alert.informativeText = [NSString stringWithFormat:@"Parsed %lu port forwarding rule%@.", (unsigned long)rules.count, rules.count != 1 ? @"s" : @""];
-    [alert addButtonWithTitle:@"OK"];
+    alert.messageText = AMLocalizedString(@"config.portForwarding");
+    alert.informativeText = rules.count == 1
+        ? AMLocalizedStringF(@"config.pfParsed.one", (unsigned long)rules.count)
+        : AMLocalizedStringF(@"config.pfParsed.other", (unsigned long)rules.count);
+    [alert addButtonWithTitle:AMLocalizedString(@"alert.ok")];
     [alert beginSheetModalForWindow:self.window completionHandler:nil];
 }
 
@@ -1450,14 +1505,9 @@
     self.virtualMachine.romFilePath = self.romField.stringValue.length > 0 ? self.romField.stringValue : @"";
     self.virtualMachine.sharedFolders = sharedAvail ? ([self.sharedFoldersList copy] ?: @[]) : @[];
 
-    NSString *netMode = networkAvail ? self.networkPopup.titleOfSelectedItem : @"none";
-    if ([netMode containsString:@"Bridge"]) self.virtualMachine.networkMode = @"bridge";
-    else if ([netMode containsString:@"Host-only"]) self.virtualMachine.networkMode = @"host-only";
-    else if ([netMode containsString:@"Modem"]) self.virtualMachine.networkMode = @"modem";
-    else if ([netMode containsString:@"Terminal"]) self.virtualMachine.networkMode = @"terminal";
-    else if ([netMode containsString:@"none"]) self.virtualMachine.networkMode = @"none";
-    else self.virtualMachine.networkMode = @"user";
-    self.virtualMachine.displayType = displayAvail ? (self.displayPopup.titleOfSelectedItem ?: @"cocoa") : @"none";
+    NSString *netMode = networkAvail ? (self.networkPopup.selectedItem.representedObject ?: @"user") : @"none";
+    self.virtualMachine.networkMode = netMode;
+    self.virtualMachine.displayType = displayAvail ? (self.displayPopup.selectedItem.representedObject ?: @"cocoa") : @"none";
     self.virtualMachine.enableAcceleration = hvfAvail ? (self.accelCheck.state == NSControlStateValueOn) : NO;
     self.virtualMachine.enableAudio = self.audioCheck.state == NSControlStateValueOn;
     self.virtualMachine.enableUSB = usbAvail ? (self.usbCheck.state == NSControlStateValueOn) : NO;
@@ -1489,8 +1539,7 @@
     self.virtualMachine.enableAutoSnapshot = (self.autoSnapshotCheck && self.autoSnapshotCheck.state == NSControlStateValueOn);
     self.virtualMachine.autoSnapshotInterval = self.autoSnapshotIntervalField ? self.autoSnapshotIntervalField.integerValue : 60;
     self.virtualMachine.isEncrypted = (self.encryptCheck && self.encryptCheck.state == NSControlStateValueOn);
-    NSDictionary *perfRevMap = @{@"Power Save": @"power-save", @"Balanced": @"balanced", @"High Performance": @"performance"};
-    self.virtualMachine.performanceProfile = perfRevMap[self.performancePopup.titleOfSelectedItem] ?: @"balanced";
+    self.virtualMachine.performanceProfile = self.performancePopup.selectedItem.representedObject ?: @"balanced";
 
     // Network advanced properties
     if (self.bridgeInterfaceField) self.virtualMachine.bridgeInterface = self.bridgeInterfaceField.stringValue ?: @"";

@@ -106,7 +106,7 @@
     [fileMenu addItemWithTitle:AMLocalizedString(@"menu.close") action:@selector(performClose:) keyEquivalent:@"w"];
     [fileMenu addItem:[NSMenuItem separatorItem]];
     NSMenuItem *diskMgrItem = [[NSMenuItem alloc] init];
-    diskMgrItem.title = @"Disk Manager...";
+    diskMgrItem.title = AMLocalizedString(@"menu.diskManager");
     diskMgrItem.action = @selector(openDiskManager:);
     [fileMenu addItem:diskMgrItem];
     fileMenuItem.submenu = fileMenu;
@@ -214,8 +214,8 @@
     panel.canChooseFiles = YES;
     panel.canChooseDirectories = NO;
     panel.allowsMultipleSelection = NO;
-    panel.allowedContentTypes = @[@"public.data"];
-    panel.title = @"Select Disk Image";
+    panel.allowedContentTypes = @[UTTypeData];
+    panel.title = AMLocalizedString(@"diskManager.selectDisk");
     [panel beginSheetModalForWindow:self.libraryWC.window completionHandler:^(NSInteger result) {
         if (result == NSModalResponseOK) {
             VMStartDiskManagerController *diskMgr = [[VMStartDiskManagerController alloc] initWithDiskPath:panel.URL.path];

@@ -6,6 +6,7 @@
 //
 
 #import "VMStartSettingsWindowController.h"
+#import "VMStartLocalization.h"
 
 @interface VMStartSettingsWindowController ()
 
@@ -58,7 +59,31 @@
     NSView *view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 400, 300)];
     
     CGFloat y = 260;
-    
+
+    // 界面语言（写入 AppleLanguages，重启后生效）
+    NSTextField *langLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 100, 24)];
+    langLabel.stringValue = AMLocalizedString(@"settings.language");
+    langLabel.bezeled = NO;
+    langLabel.drawsBackground = NO;
+    langLabel.editable = NO;
+    [view addSubview:langLabel];
+
+    NSPopUpButton *langPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(126, y - 2, 200, 26) pullsDown:NO];
+    NSArray *langs = @[@[AMLocalizedString(@"settings.language.system"), @""],
+                       @[@"简体中文", @"zh-Hans"],
+                       @[@"English", @"en"]];
+    NSString *current = [[[NSUserDefaults standardUserDefaults] persistentDomainForName:[NSBundle mainBundle].bundleIdentifier][@"AppleLanguages"] firstObject] ?: @"";
+    for (NSArray *lang in langs) {
+        [langPopup addItemWithTitle:lang[0]];
+        langPopup.lastItem.representedObject = lang[1];
+        if ([current isEqualToString:lang[1]]) [langPopup selectItem:langPopup.lastItem];
+    }
+    langPopup.target = self;
+    langPopup.action = @selector(languageChanged:);
+    [view addSubview:langPopup];
+
+    y -= 40;
+
     // QEMU path setting
     NSTextField *qemuLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 100, 24)];
     qemuLabel.stringValue = NSLocalizedString(@"settings.qemuPath", @"QEMU Path:");
@@ -92,13 +117,40 @@
     y -= 40;
     
     // Auto-start checkbox
-    NSButton *autoStart = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 200, 24)];
+    NSButton *autoStart = [[NSButton alloc] initWithFrame:NSMakeRect(20, y, 300, 24)];
     autoStart.title = NSLocalizedString(@"settings.autoStart", @"Auto-start VMs on login");
     autoStart.bezelStyle = NSBezelStyleInline;
     autoStart.state = NSControlStateValueOff;
     [view addSubview:autoStart];
     
     return view;
+}
+
+- (void)languageChanged:(NSPopUpButton *)sender {
+    NSString *code = sender.selectedItem.representedObject;
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    if (code.length > 0) {
+        [defaults setObject:@[code] forKey:@"AppleLanguages"];
+    } else {
+        [defaults removeObjectForKey:@"AppleLanguages"];
+    }
+    [defaults synchronize];
+
+    NSAlert *alert = [[NSAlert alloc] init];
+    alert.messageText = AMLocalizedString(@"settings.language.restartTitle");
+    alert.informativeText = AMLocalizedString(@"settings.language.restartMessage");
+    [alert addButtonWithTitle:AMLocalizedString(@"settings.language.restartNow")];
+    [alert addButtonWithTitle:AMLocalizedString(@"settings.language.later")];
+    [alert beginSheetModalForWindow:self.window completionHandler:^(NSModalResponse response) {
+        if (response != NSAlertFirstButtonReturn) return;
+        NSWorkspaceOpenConfiguration *config = [NSWorkspaceOpenConfiguration configuration];
+        config.createsNewApplicationInstance = YES;
+        [[NSWorkspace sharedWorkspace] openApplicationAtURL:[NSBundle mainBundle].bundleURL
+                                              configuration:config
+                                          completionHandler:^(NSRunningApplication *app, NSError *error) {
+            if (!error) dispatch_async(dispatch_get_main_queue(), ^{ [NSApp terminate:nil]; });
+        }];
+    }];
 }
 
 - (NSView *)createAdvancedView {

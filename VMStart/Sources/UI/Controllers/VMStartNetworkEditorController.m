@@ -7,6 +7,7 @@
 
 #import "VMStartNetworkEditorController.h"
 #import "VMStartCardView.h"
+#import "VMStartLocalization.h"
 
 /// Represents a single VMnet configuration
 @interface VMStartVMnet : NSObject
@@ -90,7 +91,7 @@
     NSRect frame = NSMakeRect(0, 0, 820, 560);
     NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable;
     NSWindow *window = [[NSWindow alloc] initWithContentRect:frame styleMask:style backing:NSBackingStoreBuffered defer:NO];
-    window.title = @"Virtual Network Editor";
+    window.title = AMLocalizedString(@"net.title");
     window.minSize = NSMakeSize(700, 480);
     [window center];
     self = [super initWithWindow:window];
@@ -151,7 +152,7 @@
     [content addSubview:leftPanel];
 
     NSTextField *listTitle = [[NSTextField alloc] initWithFrame:NSMakeRect(12, windowH - 28, splitX - 24, 20)];
-    listTitle.stringValue = @"Virtual Networks";
+    listTitle.stringValue = AMLocalizedString(@"net.virtualNetworks");
     listTitle.font = [NSFont boldSystemFontOfSize:12];
     listTitle.bezeled = NO; listTitle.drawsBackground = NO; listTitle.editable = NO;
     [leftPanel addSubview:listTitle];
@@ -172,12 +173,12 @@
 
     // Add/Remove buttons
     NSButton *addBtn = [[NSButton alloc] initWithFrame:NSMakeRect(12, 8, 70, 26)];
-    addBtn.title = @"Add"; addBtn.bezelStyle = NSBezelStyleRounded;
+    addBtn.title = AMLocalizedString(@"net.add"); addBtn.bezelStyle = NSBezelStyleRounded;
     addBtn.target = self; addBtn.action = @selector(addVMnet:);
     [leftPanel addSubview:addBtn];
 
     NSButton *removeBtn = [[NSButton alloc] initWithFrame:NSMakeRect(90, 8, 70, 26)];
-    removeBtn.title = @"Remove"; removeBtn.bezelStyle = NSBezelStyleRounded;
+    removeBtn.title = AMLocalizedString(@"config.removeFolder"); removeBtn.bezelStyle = NSBezelStyleRounded;
     removeBtn.target = self; removeBtn.action = @selector(removeVMnet:);
     [leftPanel addSubview:removeBtn];
 
@@ -211,62 +212,66 @@
     CGFloat labelX = 16, fieldX = 140, fieldW = w - fieldX - 20;
 
     // Name
-    [p addSubview:[self makeLabel:@"Name:" x:labelX y:y]];
+    [p addSubview:[self makeLabel:AMLocalizedString(@"net.name") x:labelX y:y]];
     self.nameField = [self makeField:@"" x:fieldX y:y w:fieldW];
     [p addSubview:self.nameField];
     y -= 32;
 
     // Type
-    [p addSubview:[self makeLabel:@"Type:" x:labelX y:y]];
+    [p addSubview:[self makeLabel:AMLocalizedString(@"net.type") x:labelX y:y]];
     self.typePopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(fieldX, y, fieldW, 26)];
-    [self.typePopup addItemsWithTitles:@[@"NAT", @"Bridge", @"Host-Only"]];
+    // 显示本地化标题，原始类型值存于 representedObject
+    for (NSString *typeId in @[@"NAT", @"Bridge", @"Host-Only"]) {
+        [self.typePopup addItemWithTitle:[self displayNameForType:typeId]];
+        self.typePopup.lastItem.representedObject = typeId;
+    }
     self.typePopup.target = self; self.typePopup.action = @selector(typeChanged:);
     [p addSubview:self.typePopup];
     y -= 36;
 
     // Subnet
-    [p addSubview:[self makeLabel:@"Subnet IP:" x:labelX y:y]];
+    [p addSubview:[self makeLabel:AMLocalizedString(@"net.subnetIP") x:labelX y:y]];
     self.subnetField = [self makeField:@"" x:fieldX y:y w:fieldW];
     [p addSubview:self.subnetField];
     y -= 32;
 
     // Subnet Mask
-    [p addSubview:[self makeLabel:@"Subnet Mask:" x:labelX y:y]];
+    [p addSubview:[self makeLabel:AMLocalizedString(@"net.subnetMask") x:labelX y:y]];
     self.maskField = [self makeField:@"255.255.255.0" x:fieldX y:y w:fieldW];
     [p addSubview:self.maskField];
     y -= 36;
 
     // Bridge interface
-    [p addSubview:[self makeLabel:@"Bridge Interface:" x:labelX y:y]];
+    [p addSubview:[self makeLabel:AMLocalizedString(@"net.bridgeInterface") x:labelX y:y]];
     self.bridgeField = [self makeField:@"" x:fieldX y:y w:fieldW];
-    self.bridgeField.placeholderString = @"en0 (for Bridge mode)";
+    self.bridgeField.placeholderString = AMLocalizedString(@"net.bridgePlaceholder");
     [p addSubview:self.bridgeField];
     y -= 40;
 
     // DHCP section
-    NSTextField *dhcpTitle = [self makeLabel:@"DHCP Server" x:labelX y:y];
+    NSTextField *dhcpTitle = [self makeLabel:AMLocalizedString(@"net.dhcpServer") x:labelX y:y];
     dhcpTitle.font = [NSFont boldSystemFontOfSize:12];
     [p addSubview:dhcpTitle];
     y -= 28;
 
     self.dhcpCheck = [[NSButton alloc] initWithFrame:NSMakeRect(labelX, y, 200, 20)];
-    self.dhcpCheck.title = @"Enable DHCP";
+    self.dhcpCheck.title = AMLocalizedString(@"net.enableDHCP");
     self.dhcpCheck.buttonType = NSButtonTypeSwitch;
     [p addSubview:self.dhcpCheck];
     y -= 28;
 
-    [p addSubview:[self makeLabel:@"DHCP Start:" x:labelX y:y]];
+    [p addSubview:[self makeLabel:AMLocalizedString(@"net.dhcpStart") x:labelX y:y]];
     self.dhcpStartField = [self makeField:@"" x:fieldX y:y w:fieldW];
     [p addSubview:self.dhcpStartField];
     y -= 28;
 
-    [p addSubview:[self makeLabel:@"DHCP End:" x:labelX y:y]];
+    [p addSubview:[self makeLabel:AMLocalizedString(@"net.dhcpEnd") x:labelX y:y]];
     self.dhcpEndField = [self makeField:@"" x:fieldX y:y w:fieldW];
     [p addSubview:self.dhcpEndField];
     y -= 36;
 
     // Port Forwarding section
-    NSTextField *pfTitle = [self makeLabel:@"Port Forwarding" x:labelX y:y];
+    NSTextField *pfTitle = [self makeLabel:AMLocalizedString(@"config.portForwarding") x:labelX y:y];
     pfTitle.font = [NSFont boldSystemFontOfSize:12];
     [p addSubview:pfTitle];
     y -= 28;
@@ -278,10 +283,10 @@
     self.pfTable = [[NSTableView alloc] initWithFrame:self.pfScroll.contentView.bounds];
     self.pfTable.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     self.pfTable.rowHeight = 22;
-    [self.pfTable addTableColumn:[self tableCol:@"hostPort" title:@"Host Port" width:70]];
-    [self.pfTable addTableColumn:[self tableCol:@"guestIP" title:@"Guest IP" width:120]];
-    [self.pfTable addTableColumn:[self tableCol:@"guestPort" title:@"Guest Port" width:70]];
-    [self.pfTable addTableColumn:[self tableCol:@"proto" title:@"Protocol" width:60]];
+    [self.pfTable addTableColumn:[self tableCol:@"hostPort" title:AMLocalizedString(@"net.hostPort") width:70]];
+    [self.pfTable addTableColumn:[self tableCol:@"guestIP" title:AMLocalizedString(@"net.guestIP") width:120]];
+    [self.pfTable addTableColumn:[self tableCol:@"guestPort" title:AMLocalizedString(@"net.guestPort") width:70]];
+    [self.pfTable addTableColumn:[self tableCol:@"proto" title:AMLocalizedString(@"net.protocol") width:60]];
     self.pfTable.dataSource = self;
     self.pfTable.delegate = self;
     self.pfScroll.documentView = self.pfTable;
@@ -289,18 +294,18 @@
 
     // PF add/remove buttons
     NSButton *pfAdd = [[NSButton alloc] initWithFrame:NSMakeRect(labelX, y - pfH - 30, 80, 24)];
-    pfAdd.title = @"Add Rule"; pfAdd.bezelStyle = NSBezelStyleRounded;
+    pfAdd.title = AMLocalizedString(@"net.addRule"); pfAdd.bezelStyle = NSBezelStyleRounded;
     pfAdd.target = self; pfAdd.action = @selector(addPortForward:);
     [p addSubview:pfAdd];
 
     NSButton *pfRemove = [[NSButton alloc] initWithFrame:NSMakeRect(labelX + 90, y - pfH - 30, 90, 24)];
-    pfRemove.title = @"Remove Rule"; pfRemove.bezelStyle = NSBezelStyleRounded;
+    pfRemove.title = AMLocalizedString(@"net.removeRule"); pfRemove.bezelStyle = NSBezelStyleRounded;
     pfRemove.target = self; pfRemove.action = @selector(removePortForward:);
     [p addSubview:pfRemove];
 
     // Apply button
     NSButton *applyBtn = [[NSButton alloc] initWithFrame:NSMakeRect(w - 100, 12, 80, 30)];
-    applyBtn.title = @"Apply"; applyBtn.bezelStyle = NSBezelStyleRounded;
+    applyBtn.title = AMLocalizedString(@"net.apply"); applyBtn.bezelStyle = NSBezelStyleRounded;
     applyBtn.target = self; applyBtn.action = @selector(applyChanges:);
     applyBtn.keyEquivalent = @"\r";
     applyBtn.autoresizingMask = NSViewMinXMargin | NSViewMinYMargin;
@@ -326,6 +331,12 @@
     return f;
 }
 
+- (NSString *)displayNameForType:(NSString *)type {
+    if ([type isEqualToString:@"Bridge"]) return AMLocalizedString(@"network_bridge");
+    if ([type isEqualToString:@"Host-Only"]) return AMLocalizedString(@"network_hostonly");
+    return type ?: @"";
+}
+
 - (NSTableColumn *)tableCol:(NSString *)ident title:(NSString *)title width:(CGFloat)w {
     NSTableColumn *col = [[NSTableColumn alloc] initWithIdentifier:ident];
     col.title = title; col.width = w;
@@ -348,7 +359,7 @@
 
     if (tv == self.vmnetTable) {
         VMStartVMnet *v = self.vmnets[row];
-        cell.stringValue = [NSString stringWithFormat:@"%@ (%@)", v.name, v.type];
+        cell.stringValue = [NSString stringWithFormat:@"%@ (%@)", v.name, [self displayNameForType:v.type]];
     } else if (tv == self.pfTable && self.selectedVMnet) {
         NSDictionary *pf = self.selectedVMnet.portForwards[row];
         if ([col.identifier isEqualToString:@"hostPort"]) cell.stringValue = pf[@"hostPort"] ?: @"";
@@ -374,7 +385,7 @@
 
 - (void)populateDetail:(VMStartVMnet *)v {
     self.nameField.stringValue = v.name;
-    [self.typePopup selectItemWithTitle:v.type];
+    [self.typePopup selectItemAtIndex:[self.typePopup indexOfItemWithRepresentedObject:v.type]];
     self.subnetField.stringValue = v.subnet;
     self.maskField.stringValue = v.subnetMask;
     self.bridgeField.stringValue = v.bridgeInterface;
@@ -417,32 +428,32 @@
 - (void)addPortForward:(id)sender {
     if (!self.selectedVMnet) return;
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = @"Add Port Forwarding Rule";
+    alert.messageText = AMLocalizedString(@"net.addRuleTitle");
 
     NSView *form = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 300, 110)];
     NSTextField *hpF = [[NSTextField alloc] initWithFrame:NSMakeRect(80, 80, 200, 22)];
-    hpF.placeholderString = @"e.g., 8080";
+    hpF.placeholderString = AMLocalizedStringF(@"net.examplePlaceholder", @"8080");
     [form addSubview:hpF];
     NSTextField *hpL = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 82, 75, 18)];
-    hpL.stringValue = @"Host Port:"; hpL.bezeled = NO; hpL.drawsBackground = NO; hpL.editable = NO;
+    hpL.stringValue = AMLocalizedString(@"net.hostPortLabel"); hpL.bezeled = NO; hpL.drawsBackground = NO; hpL.editable = NO;
     hpL.alignment = NSTextAlignmentRight; [form addSubview:hpL];
 
     NSTextField *giF = [[NSTextField alloc] initWithFrame:NSMakeRect(80, 52, 200, 22)];
-    giF.placeholderString = @"e.g., 10.0.2.15";
+    giF.placeholderString = AMLocalizedStringF(@"net.examplePlaceholder", @"10.0.2.15");
     [form addSubview:giF];
     NSTextField *giL = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 54, 75, 18)];
-    giL.stringValue = @"Guest IP:"; giL.bezeled = NO; giL.drawsBackground = NO; giL.editable = NO;
+    giL.stringValue = AMLocalizedString(@"net.guestIPLabel"); giL.bezeled = NO; giL.drawsBackground = NO; giL.editable = NO;
     giL.alignment = NSTextAlignmentRight; [form addSubview:giL];
 
     NSTextField *gpF = [[NSTextField alloc] initWithFrame:NSMakeRect(80, 24, 200, 22)];
-    gpF.placeholderString = @"e.g., 80";
+    gpF.placeholderString = AMLocalizedStringF(@"net.examplePlaceholder", @"80");
     [form addSubview:gpF];
     NSTextField *gpL = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 26, 75, 18)];
-    gpL.stringValue = @"Guest Port:"; gpL.bezeled = NO; gpL.drawsBackground = NO; gpL.editable = NO;
+    gpL.stringValue = AMLocalizedString(@"net.guestPortLabel"); gpL.bezeled = NO; gpL.drawsBackground = NO; gpL.editable = NO;
     gpL.alignment = NSTextAlignmentRight; [form addSubview:gpL];
 
     alert.accessoryView = form;
-    [alert addButtonWithTitle:@"Add"]; [alert addButtonWithTitle:@"Cancel"];
+    [alert addButtonWithTitle:AMLocalizedString(@"net.add")]; [alert addButtonWithTitle:AMLocalizedString(@"config.cancel")];
     if ([alert runModal] == NSAlertFirstButtonReturn) {
         NSDictionary *rule = @{
             @"hostPort": hpF.stringValue ?: @"",
@@ -471,7 +482,7 @@
 - (void)applyChanges:(id)sender {
     if (self.selectedVMnet) {
         self.selectedVMnet.name = self.nameField.stringValue;
-        self.selectedVMnet.type = self.typePopup.titleOfSelectedItem;
+        self.selectedVMnet.type = self.typePopup.selectedItem.representedObject;
         self.selectedVMnet.subnet = self.subnetField.stringValue;
         self.selectedVMnet.subnetMask = self.maskField.stringValue;
         self.selectedVMnet.bridgeInterface = self.bridgeField.stringValue;

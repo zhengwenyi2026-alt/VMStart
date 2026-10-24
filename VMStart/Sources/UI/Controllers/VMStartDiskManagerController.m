@@ -6,6 +6,7 @@
 //
 
 #import "VMStartDiskManagerController.h"
+#import "VMStartLocalization.h"
 
 @interface VMStartDiskManagerController ()
 @property (nonatomic, copy) NSString *diskPath;
@@ -22,7 +23,7 @@
     NSRect frame = NSMakeRect(0, 0, 500, 380);
     NSWindowStyleMask style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable;
     NSWindow *window = [[NSWindow alloc] initWithContentRect:frame styleMask:style backing:NSBackingStoreBuffered defer:NO];
-    window.title = @"Disk Manager";
+    window.title = AMLocalizedString(@"diskManager.title");
     [window center];
     self = [super initWithWindow:window];
     if (self) {
@@ -39,13 +40,13 @@
 
     // Disk path
     NSTextField *pathLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 60, 20)];
-    pathLabel.stringValue = @"Disk:";
+    pathLabel.stringValue = AMLocalizedString(@"disk.diskLabel");
     pathLabel.font = [NSFont systemFontOfSize:12];
     pathLabel.bezeled = NO; pathLabel.drawsBackground = NO; pathLabel.editable = NO;
     [content addSubview:pathLabel];
 
     NSTextField *pathField = [[NSTextField alloc] initWithFrame:NSMakeRect(80, y, 400, 20)];
-    pathField.stringValue = self.diskPath ?: @"No disk";
+    pathField.stringValue = self.diskPath ?: AMLocalizedString(@"detail.noDisk");
     pathField.font = [NSFont systemFontOfSize:11];
     pathField.textColor = [NSColor secondaryLabelColor];
     pathField.bezeled = NO; pathField.drawsBackground = NO; pathField.editable = NO;
@@ -63,14 +64,14 @@
 
     // Resize section
     NSTextField *resizeTitle = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 200, 20)];
-    resizeTitle.stringValue = @"Resize Disk";
+    resizeTitle.stringValue = AMLocalizedString(@"disk.resizeTitle");
     resizeTitle.font = [NSFont boldSystemFontOfSize:13];
     resizeTitle.bezeled = NO; resizeTitle.drawsBackground = NO; resizeTitle.editable = NO;
     [content addSubview:resizeTitle];
     y -= 30;
 
     NSTextField *sizeLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 80, 22)];
-    sizeLabel.stringValue = @"New Size:";
+    sizeLabel.stringValue = AMLocalizedString(@"disk.newSize");
     sizeLabel.font = [NSFont systemFontOfSize:12];
     sizeLabel.alignment = NSTextAlignmentRight;
     sizeLabel.bezeled = NO; sizeLabel.drawsBackground = NO; sizeLabel.editable = NO;
@@ -78,14 +79,14 @@
 
     self.sizeField = [[NSTextField alloc] initWithFrame:NSMakeRect(110, y, 100, 24)];
     self.sizeField.bezelStyle = NSTextFieldSquareBezel;
-    self.sizeField.placeholderString = @"e.g. 40";
+    self.sizeField.placeholderString = AMLocalizedString(@"disk.sizePlaceholder");
     [content addSubview:self.sizeField];
 
     self.unitPopup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(220, y, 80, 26)];
     [self.unitPopup addItemsWithTitles:@[@"GB", @"MB", @"TB"]];
     [content addSubview:self.unitPopup];
 
-    NSButton *resizeBtn = [NSButton buttonWithTitle:@"Resize" target:self action:@selector(resizeDisk:)];
+    NSButton *resizeBtn = [NSButton buttonWithTitle:AMLocalizedString(@"diskManager.resize") target:self action:@selector(resizeDisk:)];
     resizeBtn.frame = NSMakeRect(310, y, 80, 26);
     resizeBtn.bezelStyle = NSBezelStyleRounded;
     [content addSubview:resizeBtn];
@@ -93,14 +94,14 @@
 
     // Convert section
     NSTextField *convertTitle = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 200, 20)];
-    convertTitle.stringValue = @"Convert Format";
+    convertTitle.stringValue = AMLocalizedString(@"disk.convertTitle");
     convertTitle.font = [NSFont boldSystemFontOfSize:13];
     convertTitle.bezeled = NO; convertTitle.drawsBackground = NO; convertTitle.editable = NO;
     [content addSubview:convertTitle];
     y -= 30;
 
     NSTextField *fmtLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(20, y, 80, 22)];
-    fmtLabel.stringValue = @"Format:";
+    fmtLabel.stringValue = AMLocalizedString(@"disk.format");
     fmtLabel.font = [NSFont systemFontOfSize:12];
     fmtLabel.alignment = NSTextAlignmentRight;
     fmtLabel.bezeled = NO; fmtLabel.drawsBackground = NO; fmtLabel.editable = NO;
@@ -110,12 +111,12 @@
     [self.formatPopup addItemsWithTitles:@[@"qcow2", @"vmdk", @"vdi", @"raw", @"vhd"]];
     [content addSubview:self.formatPopup];
 
-    NSButton *convertBtn = [NSButton buttonWithTitle:@"Convert" target:self action:@selector(convertDisk:)];
+    NSButton *convertBtn = [NSButton buttonWithTitle:AMLocalizedString(@"diskManager.convert") target:self action:@selector(convertDisk:)];
     convertBtn.frame = NSMakeRect(240, y, 80, 26);
     convertBtn.bezelStyle = NSBezelStyleRounded;
     [content addSubview:convertBtn];
 
-    NSButton *compressBtn = [NSButton buttonWithTitle:@"Compress" target:self action:@selector(compressDisk:)];
+    NSButton *compressBtn = [NSButton buttonWithTitle:AMLocalizedString(@"diskManager.compress") target:self action:@selector(compressDisk:)];
     compressBtn.frame = NSMakeRect(330, y, 90, 26);
     compressBtn.bezelStyle = NSBezelStyleRounded;
     [content addSubview:compressBtn];
@@ -131,16 +132,16 @@
 
 - (void)loadDiskInfo {
     if (!self.diskPath) {
-        self.infoLabel.stringValue = @"No disk image selected.";
+        self.infoLabel.stringValue = AMLocalizedString(@"disk.noDiskSelected");
         return;
     }
     NSFileManager *fm = [NSFileManager defaultManager];
     NSDictionary *attrs = [fm attributesOfItemAtPath:self.diskPath error:nil];
     if (attrs) {
         NSNumber *size = attrs[NSFileSize];
-        self.infoLabel.stringValue = [NSString stringWithFormat:@"File size: %@ bytes\nFormat: qcow2 (detected)", size];
+        self.infoLabel.stringValue = AMLocalizedStringF(@"disk.info", size);
     } else {
-        self.infoLabel.stringValue = @"Cannot read disk file.";
+        self.infoLabel.stringValue = AMLocalizedString(@"disk.cannotRead");
     }
 }
 
@@ -154,13 +155,13 @@
 
 - (void)resizeDisk:(id)sender {
     NSString *qemuImg = [self qemuImgPath];
-    if (!qemuImg) { [self showStatus:@"qemu-img not found!"]; return; }
+    if (!qemuImg) { [self showStatus:AMLocalizedString(@"disk.qemuImgNotFound")]; return; }
     NSInteger sizeVal = self.sizeField.integerValue;
-    if (sizeVal <= 0) { [self showStatus:@"Invalid size."]; return; }
+    if (sizeVal <= 0) { [self showStatus:AMLocalizedString(@"disk.invalidSize")]; return; }
     NSString *unit = self.unitPopup.titleOfSelectedItem ?: @"GB";
     NSString *sizeStr = [NSString stringWithFormat:@"%ld%@", (long)sizeVal, unit];
 
-    self.statusLabel.stringValue = @"Resizing...";
+    self.statusLabel.stringValue = AMLocalizedString(@"disk.resizing");
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSTask *task = [[NSTask alloc] init];
         task.executableURL = [NSURL fileURLWithPath:qemuImg];
@@ -168,10 +169,10 @@
         [task launch]; [task waitUntilExit];
         dispatch_async(dispatch_get_main_queue(), ^{
             if (task.terminationStatus == 0) {
-                [self showStatus:@"Disk resized successfully."];
+                [self showStatus:AMLocalizedString(@"disk.resizeSuccess")];
                 [self loadDiskInfo];
             } else {
-                [self showStatus:@"Resize failed."];
+                [self showStatus:AMLocalizedString(@"disk.resizeFailed")];
             }
         });
     });
@@ -179,49 +180,49 @@
 
 - (void)convertDisk:(id)sender {
     NSString *qemuImg = [self qemuImgPath];
-    if (!qemuImg) { [self showStatus:@"qemu-img not found!"]; return; }
+    if (!qemuImg) { [self showStatus:AMLocalizedString(@"disk.qemuImgNotFound")]; return; }
     NSString *format = self.formatPopup.titleOfSelectedItem ?: @"qcow2";
     NSString *outputPath = [self.diskPath stringByDeletingPathExtension];
     outputPath = [outputPath stringByAppendingPathExtension:format];
 
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = @"Convert Disk";
-    alert.informativeText = [NSString stringWithFormat:@"Convert to %@ format?\nOutput: %@", format, outputPath];
-    [alert addButtonWithTitle:@"Convert"]; [alert addButtonWithTitle:@"Cancel"];
+    alert.messageText = AMLocalizedString(@"disk.convertAlertTitle");
+    alert.informativeText = AMLocalizedStringF(@"disk.convertAlertMessage", format, outputPath);
+    [alert addButtonWithTitle:AMLocalizedString(@"diskManager.convert")]; [alert addButtonWithTitle:AMLocalizedString(@"config.cancel")];
     if ([alert runModal] != NSAlertFirstButtonReturn) return;
 
-    self.statusLabel.stringValue = @"Converting...";
+    self.statusLabel.stringValue = AMLocalizedString(@"disk.converting");
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSTask *task = [[NSTask alloc] init];
         task.executableURL = [NSURL fileURLWithPath:qemuImg];
         task.arguments = @[@"convert", @"-f", @"qcow2", @"-O", format, self.diskPath, outputPath];
         [task launch]; [task waitUntilExit];
         dispatch_async(dispatch_get_main_queue(), ^{
-            [self showStatus:task.terminationStatus == 0 ? @"Conversion complete." : @"Conversion failed."];
+            [self showStatus:task.terminationStatus == 0 ? AMLocalizedString(@"disk.convertSuccess") : AMLocalizedString(@"disk.convertFailed")];
         });
     });
 }
 
 - (void)compressDisk:(id)sender {
     NSString *qemuImg = [self qemuImgPath];
-    if (!qemuImg) { [self showStatus:@"qemu-img not found!"]; return; }
+    if (!qemuImg) { [self showStatus:AMLocalizedString(@"disk.qemuImgNotFound")]; return; }
     NSString *outputPath = [self.diskPath stringByDeletingPathExtension];
     outputPath = [outputPath stringByAppendingString:@"_compressed.qcow2"];
 
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = @"Compress Disk";
-    alert.informativeText = [NSString stringWithFormat:@"Create compressed copy?\nOutput: %@", outputPath];
-    [alert addButtonWithTitle:@"Compress"]; [alert addButtonWithTitle:@"Cancel"];
+    alert.messageText = AMLocalizedString(@"disk.compressAlertTitle");
+    alert.informativeText = AMLocalizedStringF(@"disk.compressAlertMessage", outputPath);
+    [alert addButtonWithTitle:AMLocalizedString(@"diskManager.compress")]; [alert addButtonWithTitle:AMLocalizedString(@"config.cancel")];
     if ([alert runModal] != NSAlertFirstButtonReturn) return;
 
-    self.statusLabel.stringValue = @"Compressing...";
+    self.statusLabel.stringValue = AMLocalizedString(@"disk.compressing");
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSTask *task = [[NSTask alloc] init];
         task.executableURL = [NSURL fileURLWithPath:qemuImg];
         task.arguments = @[@"convert", @"-c", @"-f", @"qcow2", @"-O", @"qcow2", self.diskPath, outputPath];
         [task launch]; [task waitUntilExit];
         dispatch_async(dispatch_get_main_queue(), ^{
-            [self showStatus:task.terminationStatus == 0 ? @"Compression complete." : @"Compression failed."];
+            [self showStatus:task.terminationStatus == 0 ? AMLocalizedString(@"disk.compressSuccess") : AMLocalizedString(@"disk.compressFailed")];
         });
     });
 }

@@ -6,6 +6,7 @@
 //
 
 #import "VMStartLibraryWindowController.h"
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import "VMStartVirtualMachine.h"
 #import "VMStartArchitectureManager.h"
 #import "VMStartConfigWindowController.h"
@@ -15,6 +16,14 @@
 #import "VMStartCardView.h"
 #import "VMStartEngineSelector.h"
 #import "VMStartSettingsWindowController.h"
+
+// 自上而下布局的容器，供详情页滚动区域使用
+@interface VMStartFlippedView : NSView
+@end
+
+@implementation VMStartFlippedView
+- (BOOL)isFlipped { return YES; }
+@end
 
 @interface VMStartLibraryWindowController () <VMStartConfigDelegate, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate, NSMenuDelegate>
 @property (nonatomic, strong) NSTableView *tableView;
@@ -101,6 +110,8 @@
     self.sidebarView.wantsLayer = YES;
     self.sidebarView.layer.backgroundColor = [NSColor colorWithRed:0.17 green:0.17 blue:0.20 alpha:1.0].CGColor;
     self.sidebarView.autoresizingMask = NSViewHeightSizable;
+    // 侧栏为固定深色背景，强制深色外观使搜索框等控件在浅色模式下也协调
+    self.sidebarView.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
     [root addSubview:self.sidebarView];
 
     // Sidebar right edge line
@@ -121,7 +132,7 @@
 
     // Search field (dark style)
     self.searchField = [[NSSearchField alloc] initWithFrame:NSMakeRect(12, windowH - 66, sidebarW - 24, 26)];
-    self.searchField.placeholderString = @"Type here to search...";
+    self.searchField.placeholderString = AMLocalizedString(@"lib.searchPlaceholder");
     self.searchField.autoresizingMask = NSViewMaxXMargin | NSViewMinYMargin;
     self.searchField.delegate = self;
     self.searchField.wantsLayer = YES;
@@ -137,7 +148,7 @@
     [self.sidebarView addSubview:mcHeader];
 
     // Favorites filter button (compact)
-    self.favoritesButton = [NSButton buttonWithTitle:@"\u2606 Favorites" target:self action:@selector(toggleFavoritesFilter:)];
+    self.favoritesButton = [NSButton buttonWithTitle:[@"\u2606 " stringByAppendingString:AMLocalizedString(@"sidebar.favorites")] target:self action:@selector(toggleFavoritesFilter:)];
     self.favoritesButton.frame = NSMakeRect(sidebarW - 100, windowH - 98, 88, 18);
     self.favoritesButton.bezelStyle = NSBezelStyleInline;
     self.favoritesButton.font = [NSFont systemFontOfSize:9 weight:NSFontWeightMedium];
@@ -146,7 +157,7 @@
     [self.sidebarView addSubview:self.favoritesButton];
 
     // VM list
-    self.scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 80, sidebarW, windowH - 98 - 80)];
+    self.scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 40, sidebarW, windowH - 104 - 40)];
     self.scrollView.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
     self.scrollView.borderType = NSNoBorder;
     self.scrollView.drawsBackground = NO;
@@ -157,7 +168,9 @@
     self.tableView.rowHeight = 60;
     self.tableView.intercellSpacing = NSMakeSize(0, 2);
     self.tableView.backgroundColor = [NSColor clearColor];
-    self.tableView.selectionHighlightStyle = NSTableViewSelectionHighlightStyleSourceList;
+    // 普通高亮样式：源列表样式会附带半透明背景，窗口化与全屏下颜色不一致
+    self.tableView.style = NSTableViewStyleFullWidth;
+    self.tableView.selectionHighlightStyle = NSTableViewSelectionHighlightStyleRegular;
     self.tableView.dataSource = self;
     self.tableView.delegate = self;
     self.tableView.floatsGroupRows = NO;
@@ -176,7 +189,7 @@
     [self.sidebarView addSubview:self.scrollView];
 
     // Sidebar bottom toolbar (dark style)
-    NSView *sidebarToolbar = [[NSView alloc] initWithFrame:NSMakeRect(0, 40, sidebarW, 40)];
+    NSView *sidebarToolbar = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, sidebarW, 40)];
     sidebarToolbar.autoresizingMask = NSViewWidthSizable | NSViewMaxYMargin;
     sidebarToolbar.wantsLayer = YES;
     sidebarToolbar.layer.backgroundColor = [NSColor colorWithRed:0.14 green:0.14 blue:0.17 alpha:1.0].CGColor;
@@ -216,11 +229,11 @@
     topToolbar.autoresizingMask = NSViewWidthSizable | NSViewMinYMargin;
     [root addSubview:topToolbar];
 
-    CGFloat toolbarRightX = root.bounds.size.width - 20;
+    CGFloat toolbarRightX = topToolbar.bounds.size.width - 20;
 
     // 自动打印按钮
     self.autoPrintButton = [NSButton buttonWithTitle:@"" target:self action:@selector(toggleAutoPrint:)];
-    self.autoPrintButton.frame = NSMakeRect(toolbarRightX - 110, 10, 28, 24);
+    self.autoPrintButton.frame = NSMakeRect(toolbarRightX - 28, 10, 28, 24);
     self.autoPrintButton.bezelStyle = NSBezelStyleInline;
     self.autoPrintButton.image = [NSImage imageWithSystemSymbolName:@"printer.fill" accessibilityDescription:nil];
     self.autoPrintButton.imageScaling = NSImageScaleProportionallyDown;
@@ -231,7 +244,7 @@
 
     // 打印日志按钮（仅当检测到打印机时亮起）
     self.printLogButton = [NSButton buttonWithTitle:AMLocalizedString(@"toolbar.printLog") target:self action:@selector(printLogs:)];
-    self.printLogButton.frame = NSMakeRect(toolbarRightX - 210, 10, 90, 24);
+    self.printLogButton.frame = NSMakeRect(toolbarRightX - 28 - 8 - 90, 10, 90, 24);
     self.printLogButton.bezelStyle = NSBezelStyleRounded;
     self.printLogButton.font = [NSFont systemFontOfSize:12];
     self.printLogButton.enabled = self.printerAvailable;
@@ -243,7 +256,7 @@
 
     // 查看日志按钮
     self.viewLogButton = [NSButton buttonWithTitle:AMLocalizedString(@"toolbar.viewLog") target:self action:@selector(showLogPanel:)];
-    self.viewLogButton.frame = NSMakeRect(toolbarRightX - 310, 10, 90, 24);
+    self.viewLogButton.frame = NSMakeRect(toolbarRightX - 28 - 8 - 90 - 8 - 90, 10, 90, 24);
     self.viewLogButton.bezelStyle = NSBezelStyleRounded;
     self.viewLogButton.font = [NSFont systemFontOfSize:12];
     self.viewLogButton.autoresizingMask = NSViewMinXMargin | NSViewMinYMargin;
@@ -360,7 +373,7 @@
         [title.centerXAnchor constraintEqualToAnchor:self.welcomeView.centerXAnchor],
         [title.bottomAnchor constraintEqualToAnchor:grid.topAnchor constant:-24],
         [licensesBtn.centerXAnchor constraintEqualToAnchor:self.welcomeView.centerXAnchor],
-        [licensesBtn.bottomAnchor constraintEqualToAnchor:self.welcomeView.bottomAnchor constant:-20],
+        [licensesBtn.bottomAnchor constraintEqualToAnchor:self.welcomeView.bottomAnchor constant:-32],
     ]];
 
     [self.mainContentView addSubview:self.welcomeView];
@@ -368,13 +381,13 @@
 
 - (void)connectRemote:(id)sender {
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = @"Connect to Remote Server";
-    alert.informativeText = @"Enter the remote server address (SSH or VNC).";
+    alert.messageText = AMLocalizedString(@"lib.remote.title");
+    alert.informativeText = AMLocalizedString(@"lib.remote.message");
     NSTextField *input = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 260, 24)];
-    input.placeholderString = @"user@host or vnc://host";
+    input.placeholderString = AMLocalizedString(@"lib.remote.placeholder");
     alert.accessoryView = input;
-    [alert addButtonWithTitle:@"Connect"];
-    [alert addButtonWithTitle:@"Cancel"];
+    [alert addButtonWithTitle:AMLocalizedString(@"lib.connect")];
+    [alert addButtonWithTitle:AMLocalizedString(@"common.cancel")];
     [alert beginSheetModalForWindow:self.window completionHandler:nil];
 }
 
@@ -394,6 +407,8 @@
     NSView *header = [[NSView alloc] initWithFrame:NSMakeRect(0, dh - 120, dw, 120)];
     header.wantsLayer = YES;
     header.layer.backgroundColor = [NSColor colorWithRed:0.95 green:0.95 blue:0.96 alpha:1.0].CGColor;
+    // 浅色背景强制使用浅色外观，避免深色模式下文字和图标变白看不清
+    header.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
     header.autoresizingMask = NSViewWidthSizable | NSViewMinYMargin;
     [self.detailsView addSubview:header];
 
@@ -460,7 +475,7 @@
     // Action buttons (right side)
     NSButton *startBtn = [NSButton buttonWithTitle:AMLocalizedString(@"detail.start") target:self action:@selector(startVM:)];
     startBtn.bezelStyle = NSBezelStyleRounded;
-    startBtn.frame = NSMakeRect(dw - 130, 78, 110, 30);
+    startBtn.frame = NSMakeRect(dw - 130, 48, 110, 30);
     startBtn.autoresizingMask = NSViewMinXMargin;
     startBtn.bezelColor = [NSColor colorWithRed:0.25 green:0.7 blue:0.35 alpha:1.0];
     startBtn.image = [NSImage imageWithSystemSymbolName:@"play.fill" accessibilityDescription:nil];
@@ -470,20 +485,57 @@
 
     NSButton *editBtn = [NSButton buttonWithTitle:AMLocalizedString(@"detail.settings") target:self action:@selector(editVM:)];
     editBtn.bezelStyle = NSBezelStyleRounded;
-    editBtn.frame = NSMakeRect(dw - 130, 40, 110, 30);
+    editBtn.frame = NSMakeRect(dw - 130, 12, 110, 30);
     editBtn.autoresizingMask = NSViewMinXMargin;
     editBtn.image = [NSImage imageWithSystemSymbolName:@"gearshape" accessibilityDescription:nil];
     editBtn.imagePosition = NSImageLeading;
     [header addSubview:editBtn];
 
+    // ─── 详情主体：可滚动、居中且限宽，窗口过矮时滚动、全屏时不被拉满 ───
+    CGFloat rowH = 44;
+    CGFloat colW = MIN(dw - 48, 860);
+    CGFloat rowsTop = 44;
+    CGFloat notesTop = rowsTop + 9 * rowH + 16;
+    CGFloat colH = notesTop + 70 + 20;
+
+    NSScrollView *body = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 24, dw, dh - 120 - 24)];
+    body.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    body.drawsBackground = NO;
+    body.hasVerticalScroller = YES;
+    body.autohidesScrollers = YES;
+    body.borderType = NSNoBorder;
+    [self.detailsView addSubview:body];
+
+    VMStartFlippedView *doc = [[VMStartFlippedView alloc] initWithFrame:NSMakeRect(0, 0, dw, colH)];
+    doc.translatesAutoresizingMaskIntoConstraints = NO;
+    body.documentView = doc;
+
+    VMStartFlippedView *column = [[VMStartFlippedView alloc] initWithFrame:NSMakeRect(0, 0, colW, colH)];
+    column.translatesAutoresizingMaskIntoConstraints = NO;
+    [doc addSubview:column];
+
+    NSLayoutConstraint *fillW = [column.widthAnchor constraintEqualToAnchor:doc.widthAnchor constant:-48];
+    // 优先级须低于窗口尺寸保持优先级，否则会反向限制窗口（全屏时无法铺满）
+    fillW.priority = NSLayoutPriorityDefaultLow;
+    [NSLayoutConstraint activateConstraints:@[
+        [doc.leadingAnchor constraintEqualToAnchor:body.contentView.leadingAnchor],
+        [doc.trailingAnchor constraintEqualToAnchor:body.contentView.trailingAnchor],
+        [doc.topAnchor constraintEqualToAnchor:body.contentView.topAnchor],
+        [doc.heightAnchor constraintEqualToConstant:colH],
+        [column.topAnchor constraintEqualToAnchor:doc.topAnchor],
+        [column.heightAnchor constraintEqualToConstant:colH],
+        [column.centerXAnchor constraintEqualToAnchor:doc.centerXAnchor],
+        [column.widthAnchor constraintLessThanOrEqualToConstant:860],
+        fillW,
+    ]];
+
     // ─── "HARDWARE" section title ───
-    NSTextField *hwTitle = [[NSTextField alloc] initWithFrame:NSMakeRect(24, dh - 150, 200, 18)];
+    NSTextField *hwTitle = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 16, 200, 18)];
     hwTitle.stringValue = AMLocalizedString(@"detail.hardware");
     hwTitle.font = [NSFont systemFontOfSize:11 weight:NSFontWeightBold];
     hwTitle.textColor = [NSColor secondaryLabelColor];
     hwTitle.bezeled = NO; hwTitle.drawsBackground = NO; hwTitle.editable = NO;
-    hwTitle.autoresizingMask = NSViewMaxXMargin | NSViewMinYMargin;
-    [self.detailsView addSubview:hwTitle];
+    [column addSubview:hwTitle];
 
     // ─── Fusion-style hardware rows ───
     NSArray *hwItems = @[
@@ -493,21 +545,19 @@
         @{@"icon": @"network",          @"label": AMLocalizedString(@"detail.network"),    @"tag": @(103)},
         @{@"icon": @"display",          @"label": AMLocalizedString(@"detail.display"),    @"tag": @(104)},
         @{@"icon": @"speaker.wave.2",   @"label": AMLocalizedString(@"detail.soundCard"), @"tag": @(105)},
-        @{@"icon": @"usb.symbol",       @"label": AMLocalizedString(@"detail.usb"),        @"tag": @(106)},
-        @{@"icon": @"speedometer",      @"label": AMLocalizedString(@"detail.acceleration"), @"tag": @(108)},
-        @{@"icon": @"info.circle",      @"label": AMLocalizedString(@"detail.engine"),     @"tag": @(107)},
+        @{@"icon": @"cable.connector",  @"label": AMLocalizedString(@"detail.usb"),        @"tag": @(106)},
+        @{@"icon": @"speedometer",      @"label": AMLocalizedString(@"detail.acceleration"), @"tag": @(107)},
+        @{@"icon": @"info.circle",      @"label": AMLocalizedString(@"detail.engine"),     @"tag": @(108)},
     ];
 
-    CGFloat rowH = 44;
-    CGFloat startY = dh - 214; // 9 rows * 44px + offset
-    CGFloat rowW = dw - 48;
+    CGFloat rowW = colW;
     for (NSInteger i = 0; i < hwItems.count; i++) {
-        CGFloat y = startY - i * rowH;
+        CGFloat y = rowsTop + i * rowH;
         // Row background
-        NSView *row = [[NSView alloc] initWithFrame:NSMakeRect(24, y, rowW, rowH)];
+        NSView *row = [[NSView alloc] initWithFrame:NSMakeRect(0, y, rowW, rowH)];
         row.wantsLayer = YES;
-        row.autoresizingMask = NSViewWidthSizable | NSViewMinYMargin;
-        [self.detailsView addSubview:row];
+        row.autoresizingMask = NSViewWidthSizable;
+        [column addSubview:row];
 
         // Separator line at bottom
         NSView *sep = [[NSView alloc] initWithFrame:NSMakeRect(36, 0, rowW - 36, 1)];
@@ -543,17 +593,18 @@
 
         // Disk usage progress bar (only for Hard Disk row, tag=102)
         if ([hwItems[i][@"tag"] integerValue] == 102) {
-            NSView *progressBg = [[NSView alloc] initWithFrame:NSMakeRect(140, 8, rowW - 280, 8)];
+            // 进度条位于标签与右侧数值之间，右侧预留 260pt 给数值文字
+            NSView *progressBg = [[NSView alloc] initWithFrame:NSMakeRect(140, 19, rowW - 140 - 260, 6)];
             progressBg.wantsLayer = YES;
-            progressBg.layer.cornerRadius = 4;
-            progressBg.layer.backgroundColor = [NSColor colorWithRed:0.9 green:0.9 blue:0.92 alpha:1.0].CGColor;
+            progressBg.layer.cornerRadius = 3;
+            progressBg.layer.backgroundColor = [NSColor colorWithWhite:0.5 alpha:0.3].CGColor;
             progressBg.autoresizingMask = NSViewWidthSizable | NSViewMaxYMargin;
             self.diskProgressBg = progressBg;
             [row addSubview:progressBg];
 
-            NSView *progressFill = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 0, 8)];
+            NSView *progressFill = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 0, 6)];
             progressFill.wantsLayer = YES;
-            progressFill.layer.cornerRadius = 4;
+            progressFill.layer.cornerRadius = 3;
             progressFill.layer.backgroundColor = [NSColor colorWithRed:0.3 green:0.65 blue:0.95 alpha:1.0].CGColor;
             self.diskProgressFill = progressFill;
             [progressBg addSubview:progressFill];
@@ -561,11 +612,11 @@
     }
 
     // ─── Notes section (bottom) ───
-    VMStartCardView *notesCard = [[VMStartCardView alloc] initWithFrame:NSMakeRect(24, 20, dw - 48, 70)];
-    notesCard.autoresizingMask = NSViewWidthSizable | NSViewMaxYMargin;
+    VMStartCardView *notesCard = [[VMStartCardView alloc] initWithFrame:NSMakeRect(0, notesTop, colW, 70)];
+    notesCard.autoresizingMask = NSViewWidthSizable;
     notesCard.cornerRadius = 10;
     self.notesCardRef = notesCard;
-    [self.detailsView addSubview:notesCard];
+    [column addSubview:notesCard];
 
     NSTextField *notesTitle = [[NSTextField alloc] initWithFrame:NSMakeRect(14, 48, 80, 14)];
     notesTitle.stringValue = AMLocalizedString(@"detail.notes");
@@ -579,6 +630,7 @@
     notesValue.textColor = [NSColor textColor];
     notesValue.bezeled = NO; notesValue.drawsBackground = NO; notesValue.editable = NO;
     notesValue.tag = 201;
+    notesValue.autoresizingMask = NSViewWidthSizable;
     notesValue.lineBreakMode = NSLineBreakByWordWrapping;
     [notesCard addSubview:notesValue];
 
@@ -608,6 +660,8 @@
     BOOL hasSelection = row >= 0 && row < (NSInteger)[self visibleVMs].count;
     self.welcomeView.hidden = hasSelection;
     self.detailsView.hidden = !hasSelection;
+    // 右上角按钮叠在详情页浅色头部或欢迎页深色背景上，外观随之切换
+    self.viewLogButton.superview.appearance = [NSAppearance appearanceNamed:hasSelection ? NSAppearanceNameAqua : NSAppearanceNameDarkAqua];
     if (hasSelection) {
         [self updateDetailsForVM:[self visibleVMs][row]];
     }
@@ -726,7 +780,7 @@
         case VMStartStatusPaused: return [NSColor colorWithRed:0.95 green:0.65 blue:0.1 alpha:1.0];
         case VMStartStatusStarting: return [NSColor colorWithRed:0.2 green:0.55 blue:0.95 alpha:1.0];
         case VMStartStatusError: return [NSColor colorWithRed:0.9 green:0.25 blue:0.25 alpha:1.0];
-        default: return [NSColor tertiaryLabelColor];
+        default: return [NSColor colorWithRed:0.55 green:0.55 blue:0.58 alpha:1.0];
     }
 }
 
@@ -754,13 +808,17 @@
     if (osIconView) osIconView.image = vm.osIcon;
 
     // Hardware info (Fusion-style rows)
-    NSString *cpu = [NSString stringWithFormat:@"%@, %ld core%@", vm.cpuModel ?: @"default", (long)vm.cpuCores, vm.cpuCores > 1 ? @"s" : @""];
+    NSString *cpu = AMLocalizedStringF(@"lib.cpuCores", vm.cpuModel.length > 0 && ![vm.cpuModel isEqualToString:@"default"] ? vm.cpuModel : AMLocalizedString(@"lib.cpuDefault"), (long)vm.cpuCores);
     NSString *mem = [NSString stringWithFormat:@"%ld %@", (long)vm.memoryValue, vm.memoryUnit ?: @"MB"];
-    NSString *disk = [vm.diskSizeUnit isEqualToString:@"none"] ? @"No disk" : [NSString stringWithFormat:@"%ld %@", (long)vm.diskSizeValue, vm.diskSizeUnit ?: @"GB"];
-    NSString *net = vm.networkMode ?: @"NAT";
-    NSString *disp = vm.displayType ?: @"cocoa";
-    NSString *sound = vm.enableSoundCard ? (vm.soundCardModel ?: @"Intel HDA") : @"Disabled";
-    NSString *usb = vm.enableUSB ? vm.usbVersion : @"Disabled";
+    NSString *disk = [vm.diskSizeUnit isEqualToString:@"none"] ? AMLocalizedString(@"detail.noDisk") : [NSString stringWithFormat:@"%ld %@", (long)vm.diskSizeValue, vm.diskSizeUnit ?: @"GB"];
+    NSDictionary *netNames = @{@"user": AMLocalizedString(@"network_nat"), @"bridge": AMLocalizedString(@"network_bridge"),
+                               @"host-only": AMLocalizedString(@"network_hostonly"), @"modem": AMLocalizedString(@"network_modem"),
+                               @"terminal": AMLocalizedString(@"network_terminal"), @"none": AMLocalizedString(@"network_none")};
+    NSString *net = netNames[vm.networkMode ?: @"user"] ?: vm.networkMode;
+    NSDictionary *dispNames = @{@"cocoa": AMLocalizedString(@"lib.display.cocoa"), @"vnc": @"VNC", @"none": AMLocalizedString(@"lib.display.none")};
+    NSString *disp = dispNames[vm.displayType ?: @"cocoa"] ?: vm.displayType;
+    NSString *sound = vm.enableSoundCard ? (vm.soundCardModel.length > 0 ? vm.soundCardModel.uppercaseString : @"Intel HDA") : AMLocalizedString(@"detail.disabled");
+    NSString *usb = vm.enableUSB ? [@"USB " stringByAppendingString:vm.usbVersion ?: @""] : AMLocalizedString(@"detail.disabled");
     
     // Acceleration mode
     NSString *accel = AMLocalizedString(@"detail.accelDisabled");
@@ -776,7 +834,7 @@
     NSString *engine = [VMStartEngineSelector nameForEngineType:engineType];
 
     // Order matches hwItems array: Processor, Memory, Hard Disk, Network, Display, Sound Card, USB, Acceleration, Engine
-    NSArray *values = @[cpu, mem, disk, net, disp, sound, usb ?: @"Disabled", accel, engine ?: @"QEMU"];
+    NSArray *values = @[cpu, mem, disk, net, disp, sound, usb, accel, engine ?: @"QEMU"];
     for (NSInteger i = 0; i < values.count; i++) {
         NSTextField *tf = [self.detailsView viewWithTag:100 + i];
         if (tf) tf.stringValue = values[i];
@@ -787,7 +845,7 @@
         CGFloat percent = [vm diskUsagePercent];
         if (percent > 0) {
             CGFloat fillWidth = self.diskProgressBg.bounds.size.width * percent;
-            self.diskProgressFill.frame = NSMakeRect(0, 0, fillWidth, 8);
+            self.diskProgressFill.frame = NSMakeRect(0, 0, fillWidth, 6);
             self.diskProgressBg.hidden = NO;
             self.diskProgressFill.hidden = NO;
             // Update disk label to show usage
@@ -795,7 +853,7 @@
             if (diskLabel) {
                 NSInteger usedMB = [vm diskUsedBytes] / (1024 * 1024);
                 NSInteger totalMB = [vm diskTotalBytes] / (1024 * 1024);
-                diskLabel.stringValue = [NSString stringWithFormat:@"%@ (%ld/%ld MB used)", disk, (long)usedMB, (long)totalMB];
+                diskLabel.stringValue = AMLocalizedStringF(@"lib.diskUsed", disk, (long)usedMB, (long)totalMB);
             }
         } else {
             self.diskProgressBg.hidden = YES;
@@ -880,10 +938,10 @@
     NSArray *vms = [self selectedVMs];
     if (vms.count == 0) return;
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = [NSString stringWithFormat:@"Delete %lu Virtual Machine%@?", (unsigned long)vms.count, vms.count > 1 ? @"s" : @""];
-    alert.informativeText = @"The selected VMs will be moved to Trash.";
-    [alert addButtonWithTitle:@"Delete"];
-    [alert addButtonWithTitle:@"Cancel"];
+    alert.messageText = AMLocalizedStringF(@"lib.batchDelete.title", (unsigned long)vms.count);
+    alert.informativeText = AMLocalizedString(@"lib.batchDelete.message");
+    [alert addButtonWithTitle:AMLocalizedString(@"alert.delete")];
+    [alert addButtonWithTitle:AMLocalizedString(@"common.cancel")];
     alert.alertStyle = NSAlertStyleWarning;
     if ([alert runModal] == NSAlertFirstButtonReturn) {
         for (VMStartVirtualMachine *vm in vms) {
@@ -912,7 +970,7 @@
 #pragma mark - Actions
 
 - (void)addVM:(id)sender {
-    VMStartVirtualMachine *vm = [VMStartVirtualMachine virtualMachineWithName:@"New Virtual Machine" architecture:VMStartArchX86_64];
+    VMStartVirtualMachine *vm = [VMStartVirtualMachine virtualMachineWithName:AMLocalizedString(@"lib.newVMName") architecture:VMStartArchX86_64];
     NSString *vmPath = [self.vmDirectory stringByAppendingPathComponent:
                         [NSString stringWithFormat:@"%@.vmstart", vm.vmIdentifier]];
     vm.vmBundlePath = vmPath;
@@ -927,7 +985,7 @@
     panel.canChooseDirectories = NO;
     panel.allowsMultipleSelection = YES;
     panel.allowedContentTypes = @[];
-    panel.title = @"Open Virtual Machine";
+    panel.title = AMLocalizedString(@"lib.openVM");
     [panel beginSheetModalForWindow:self.window completionHandler:^(NSInteger result) {
         if (result == NSModalResponseOK) {
             for (NSURL *url in panel.URLs) {
@@ -955,10 +1013,10 @@
     NSInteger row = self.tableView.selectedRow;
     if (row < 0 || row >= (NSInteger)[self visibleVMs].count) return;
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = @"Delete Virtual Machine?";
-    alert.informativeText = @"The virtual machine will be moved to Trash.";
-    [alert addButtonWithTitle:@"Delete"];
-    [alert addButtonWithTitle:@"Cancel"];
+    alert.messageText = AMLocalizedString(@"alert.deleteVM.title");
+    alert.informativeText = AMLocalizedString(@"lib.delete.message");
+    [alert addButtonWithTitle:AMLocalizedString(@"alert.delete")];
+    [alert addButtonWithTitle:AMLocalizedString(@"common.cancel")];
     alert.alertStyle = NSAlertStyleWarning;
     if ([alert runModal] == NSAlertFirstButtonReturn) {
         VMStartVirtualMachine *vm = [self visibleVMs][row];
@@ -1054,8 +1112,8 @@
         if (vm.status == VMStartStatusRunning) running++;
         if (vm.isFavorite) favCount++;
     }
-    NSString *extra = self.showFavoritesOnly ? [NSString stringWithFormat:@" • Showing %ld favorites", (long)favCount] : @"";
-    self.statusBarLabel.stringValue = [NSString stringWithFormat:@"%ld VMs (%ld running)%@ • Engine: %@", (long)total, (long)running, extra, qemuVer ?: @"N/A"];
+    NSString *extra = self.showFavoritesOnly ? AMLocalizedStringF(@"lib.status.favorites", (long)favCount) : @"";
+    self.statusBarLabel.stringValue = AMLocalizedStringF(@"lib.status.format", (long)total, (long)running, extra, qemuVer ?: AMLocalizedString(@"lib.status.noEngine"));
 }
 
 #pragma mark - Context Menu
@@ -1070,45 +1128,45 @@
     [self.contextMenu addItem:[self menuItem:AMLocalizedString(@"status.paused") action:@selector(ctxPause:) icon:@"pause.fill"]];
     [self.contextMenu addItem:[NSMenuItem separatorItem]];
     [self.contextMenu addItem:[self menuItem:[NSString stringWithFormat:@"%@...", AMLocalizedString(@"detail.settings")] action:@selector(ctxEdit:) icon:@"gearshape"]];
-    [self.contextMenu addItem:[self menuItem:@"Open Console" action:@selector(ctxOpenConsole:) icon:@"terminal"]];
+    [self.contextMenu addItem:[self menuItem:AMLocalizedString(@"lib.ctx.openConsole") action:@selector(ctxOpenConsole:) icon:@"terminal"]];
     [self.contextMenu addItem:[NSMenuItem separatorItem]];
 
-    NSMenuItem *favItem = [self menuItem:@"Toggle Favorite" action:@selector(ctxToggleFavorite:) icon:@"star"];
+    NSMenuItem *favItem = [self menuItem:AMLocalizedString(@"lib.ctx.toggleFavorite") action:@selector(ctxToggleFavorite:) icon:@"star"];
     favItem.tag = 999;
     [self.contextMenu addItem:favItem];
 
-    NSMenuItem *groupItem = [[NSMenuItem alloc] initWithTitle:@"Set Group..." action:@selector(ctxSetGroup:) keyEquivalent:@""];
+    NSMenuItem *groupItem = [[NSMenuItem alloc] initWithTitle:AMLocalizedString(@"lib.ctx.setGroup") action:@selector(ctxSetGroup:) keyEquivalent:@""];
     groupItem.target = self;
     [self.contextMenu addItem:groupItem];
 
     [self.contextMenu addItem:[NSMenuItem separatorItem]];
 
     // Snapshots submenu
-    NSMenuItem *snapshotMenu = [[NSMenuItem alloc] initWithTitle:@"Snapshots" action:nil keyEquivalent:@""];
+    NSMenuItem *snapshotMenu = [[NSMenuItem alloc] initWithTitle:AMLocalizedString(@"lib.ctx.snapshots") action:nil keyEquivalent:@""];
     NSMenu *snapMenu = [[NSMenu alloc] init];
-    [snapMenu addItem:[self menuItem:@"Take Snapshot..." action:@selector(ctxTakeSnapshot:) icon:@"camera"]];
-    [snapMenu addItem:[self menuItem:@"Restore Snapshot..." action:@selector(ctxRestoreSnapshot:) icon:@"arrow.uturn.backward"]];
-    [snapMenu addItem:[self menuItem:@"Delete Snapshot..." action:@selector(ctxDeleteSnapshot:) icon:@"trash"]];
+    [snapMenu addItem:[self menuItem:AMLocalizedString(@"lib.ctx.takeSnapshot") action:@selector(ctxTakeSnapshot:) icon:@"camera"]];
+    [snapMenu addItem:[self menuItem:AMLocalizedString(@"lib.ctx.restoreSnapshot") action:@selector(ctxRestoreSnapshot:) icon:@"arrow.uturn.backward"]];
+    [snapMenu addItem:[self menuItem:AMLocalizedString(@"lib.ctx.deleteSnapshot") action:@selector(ctxDeleteSnapshot:) icon:@"trash"]];
     snapshotMenu.submenu = snapMenu;
     [self.contextMenu addItem:snapshotMenu];
 
     // Clone submenu
-    NSMenuItem *cloneMenu = [[NSMenuItem alloc] initWithTitle:@"Clone" action:nil keyEquivalent:@""];
+    NSMenuItem *cloneMenu = [[NSMenuItem alloc] initWithTitle:AMLocalizedString(@"lib.ctx.clone") action:nil keyEquivalent:@""];
     NSMenu *cloneSub = [[NSMenu alloc] init];
-    [cloneSub addItem:[self menuItem:@"Full Clone..." action:@selector(ctxFullClone:) icon:@"doc.on.doc"]];
-    [cloneSub addItem:[self menuItem:@"Linked Clone..." action:@selector(ctxLinkedClone:) icon:@"link"]];
+    [cloneSub addItem:[self menuItem:AMLocalizedString(@"lib.ctx.fullClone") action:@selector(ctxFullClone:) icon:@"doc.on.doc"]];
+    [cloneSub addItem:[self menuItem:AMLocalizedString(@"lib.ctx.linkedClone") action:@selector(ctxLinkedClone:) icon:@"link"]];
     cloneMenu.submenu = cloneSub;
     [self.contextMenu addItem:cloneMenu];
 
     [self.contextMenu addItem:[NSMenuItem separatorItem]];
-    [self.contextMenu addItem:[self menuItem:@"Export OVF/OVA..." action:@selector(ctxExportOVF:) icon:@"square.and.arrow.up"]];
-    [self.contextMenu addItem:[self menuItem:@"Encrypt VM..." action:@selector(ctxEncrypt:) icon:@"lock"]];
+    [self.contextMenu addItem:[self menuItem:AMLocalizedString(@"lib.ctx.exportOVF") action:@selector(ctxExportOVF:) icon:@"square.and.arrow.up"]];
+    [self.contextMenu addItem:[self menuItem:AMLocalizedString(@"lib.ctx.encrypt") action:@selector(ctxEncrypt:) icon:@"lock"]];
     [self.contextMenu addItem:[NSMenuItem separatorItem]];
-    [self.contextMenu addItem:[self menuItem:@"Batch Start (Selected)" action:@selector(batchStart:) icon:@"play.circle"]];
-    [self.contextMenu addItem:[self menuItem:@"Batch Stop (Selected)" action:@selector(batchStop:) icon:@"stop.circle"]];
-    [self.contextMenu addItem:[self menuItem:@"Batch Delete (Selected)" action:@selector(batchDelete:) icon:@"trash.circle"]];
+    [self.contextMenu addItem:[self menuItem:AMLocalizedString(@"lib.ctx.batchStart") action:@selector(batchStart:) icon:@"play.circle"]];
+    [self.contextMenu addItem:[self menuItem:AMLocalizedString(@"lib.ctx.batchStop") action:@selector(batchStop:) icon:@"stop.circle"]];
+    [self.contextMenu addItem:[self menuItem:AMLocalizedString(@"lib.ctx.batchDelete") action:@selector(batchDelete:) icon:@"trash.circle"]];
     [self.contextMenu addItem:[NSMenuItem separatorItem]];
-    [self.contextMenu addItem:[self menuItem:@"Delete" action:@selector(ctxDelete:) icon:@"trash"]];
+    [self.contextMenu addItem:[self menuItem:AMLocalizedString(@"alert.delete") action:@selector(ctxDelete:) icon:@"trash"]];
 }
 
 - (NSMenuItem *)menuItem:(NSString *)title action:(SEL)action icon:(NSString *)icon {
@@ -1125,7 +1183,7 @@
     if (row >= 0 && row < (NSInteger)[self visibleVMs].count) {
         VMStartVirtualMachine *vm = [self visibleVMs][row];
         NSMenuItem *favItem = [menu itemWithTag:999];
-        favItem.title = vm.isFavorite ? @"\u2605 Remove from Favorites" : @"\u2606 Add to Favorites";
+        favItem.title = vm.isFavorite ? [@"\u2605 " stringByAppendingString:AMLocalizedString(@"lib.ctx.unfavorite")] : [@"\u2606 " stringByAppendingString:AMLocalizedString(@"lib.ctx.favorite")];
     }
 }
 
@@ -1156,13 +1214,13 @@
     VMStartVirtualMachine *vm = [self contextMenuVM];
     if (!vm) return;
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = @"Set VM Group";
+    alert.messageText = AMLocalizedString(@"lib.group.title");
     NSTextField *input = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 200, 24)];
     input.stringValue = vm.group ?: @"";
-    input.placeholderString = @"Group name";
+    input.placeholderString = AMLocalizedString(@"lib.group.placeholder");
     alert.accessoryView = input;
-    [alert addButtonWithTitle:@"OK"];
-    [alert addButtonWithTitle:@"Cancel"];
+    [alert addButtonWithTitle:AMLocalizedString(@"alert.ok")];
+    [alert addButtonWithTitle:AMLocalizedString(@"common.cancel")];
     if ([alert runModal] == NSAlertFirstButtonReturn) {
         vm.group = input.stringValue ?: @"";
         [vm saveToBundle];
@@ -1174,12 +1232,12 @@
     VMStartVirtualMachine *vm = [self contextMenuVM];
     if (!vm) return;
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = @"Take Snapshot";
+    alert.messageText = AMLocalizedString(@"lib.snapshot.take");
     NSTextField *input = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 200, 24)];
-    input.placeholderString = @"Snapshot name";
+    input.placeholderString = AMLocalizedString(@"lib.snapshot.placeholder");
     alert.accessoryView = input;
-    [alert addButtonWithTitle:@"Save"];
-    [alert addButtonWithTitle:@"Cancel"];
+    [alert addButtonWithTitle:AMLocalizedString(@"common.save")];
+    [alert addButtonWithTitle:AMLocalizedString(@"common.cancel")];
     if ([alert runModal] == NSAlertFirstButtonReturn && input.stringValue.length > 0) {
         NSString *snapName = input.stringValue;
         NSString *snapDate = [[NSDate date] description];
@@ -1205,14 +1263,14 @@
     VMStartVirtualMachine *vm = [self contextMenuVM];
     if (!vm || vm.snapshots.count == 0) return;
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = @"Restore Snapshot";
+    alert.messageText = AMLocalizedString(@"lib.snapshot.restore");
     NSPopUpButton *popup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(0, 0, 200, 26)];
     for (NSDictionary *snap in vm.snapshots) {
-        [popup addItemWithTitle:snap[@"name"] ?: @"unnamed"];
+        [popup addItemWithTitle:snap[@"name"] ?: AMLocalizedString(@"lib.snapshot.unnamed")];
     }
     alert.accessoryView = popup;
-    [alert addButtonWithTitle:@"Restore"];
-    [alert addButtonWithTitle:@"Cancel"];
+    [alert addButtonWithTitle:AMLocalizedString(@"lib.restore")];
+    [alert addButtonWithTitle:AMLocalizedString(@"common.cancel")];
     if ([alert runModal] == NSAlertFirstButtonReturn) {
         NSString *snapName = popup.titleOfSelectedItem;
         if (snapName && vm.diskImagePath.length > 0) {
@@ -1229,14 +1287,14 @@
     VMStartVirtualMachine *vm = [self contextMenuVM];
     if (!vm || vm.snapshots.count == 0) return;
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = @"Delete Snapshot";
+    alert.messageText = AMLocalizedString(@"lib.snapshot.delete");
     NSPopUpButton *popup = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(0, 0, 200, 26)];
     for (NSDictionary *snap in vm.snapshots) {
-        [popup addItemWithTitle:snap[@"name"] ?: @"unnamed"];
+        [popup addItemWithTitle:snap[@"name"] ?: AMLocalizedString(@"lib.snapshot.unnamed")];
     }
     alert.accessoryView = popup;
-    [alert addButtonWithTitle:@"Delete"];
-    [alert addButtonWithTitle:@"Cancel"];
+    [alert addButtonWithTitle:AMLocalizedString(@"alert.delete")];
+    [alert addButtonWithTitle:AMLocalizedString(@"common.cancel")];
     alert.alertStyle = NSAlertStyleWarning;
     if ([alert runModal] == NSAlertFirstButtonReturn) {
         NSInteger idx = popup.indexOfSelectedItem;
@@ -1260,10 +1318,10 @@
     if (!vm) return;
     // Clone wizard dialog
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = @"Full Clone";
-    alert.informativeText = [NSString stringWithFormat:@"Create a full independent copy of '%@'?\n\nThis will copy the entire disk image. The clone will be completely independent of the original.", vm.name];
-    [alert addButtonWithTitle:@"Clone"];
-    [alert addButtonWithTitle:@"Cancel"];
+    alert.messageText = AMLocalizedString(@"lib.clone.title");
+    alert.informativeText = AMLocalizedStringF(@"lib.clone.message", vm.name);
+    [alert addButtonWithTitle:AMLocalizedString(@"lib.clone.button")];
+    [alert addButtonWithTitle:AMLocalizedString(@"common.cancel")];
     if ([alert runModal] != NSAlertFirstButtonReturn) return;
     VMStartVirtualMachine *clone = [VMStartVirtualMachine virtualMachineWithName:[NSString stringWithFormat:@"%@ (Clone)", vm.name] architecture:vm.architecture];
     clone.osType = vm.osType;
@@ -1354,7 +1412,7 @@
     NSSavePanel *panel = [NSSavePanel savePanel];
     panel.allowedContentTypes = @[];
     panel.nameFieldStringValue = [NSString stringWithFormat:@"%@.ovf", vm.name];
-    panel.title = @"Export OVF";
+    panel.title = AMLocalizedString(@"lib.exportOVF");
     [panel beginSheetModalForWindow:self.window completionHandler:^(NSInteger result) {
         if (result == NSModalResponseOK && panel.URL) {
             // Generate OVF XML
@@ -1374,10 +1432,10 @@
     VMStartVirtualMachine *vm = [self contextMenuVM];
     if (!vm) return;
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = vm.isEncrypted ? @"VM is encrypted. Decrypt?" : @"Encrypt VM?";
-    alert.informativeText = @"This will set the encryption flag for this VM.";
-    [alert addButtonWithTitle:@"OK"];
-    [alert addButtonWithTitle:@"Cancel"];
+    alert.messageText = vm.isEncrypted ? AMLocalizedString(@"lib.encrypt.decryptTitle") : AMLocalizedString(@"lib.encrypt.title");
+    alert.informativeText = AMLocalizedString(@"lib.encrypt.message");
+    [alert addButtonWithTitle:AMLocalizedString(@"alert.ok")];
+    [alert addButtonWithTitle:AMLocalizedString(@"common.cancel")];
     if ([alert runModal] == NSAlertFirstButtonReturn) {
         vm.isEncrypted = !vm.isEncrypted;
         [vm saveToBundle];
@@ -1421,7 +1479,7 @@
 
 - (void)toggleFavoritesFilter:(id)sender {
     self.showFavoritesOnly = !self.showFavoritesOnly;
-    self.favoritesButton.title = self.showFavoritesOnly ? @"\u2605 Favorites" : @"\u2606 Favorites";
+    self.favoritesButton.title = [(self.showFavoritesOnly ? @"\u2605 " : @"\u2606 ") stringByAppendingString:AMLocalizedString(@"sidebar.favorites")];
     [self.tableView reloadData];
     [self updateContentVisibility];
     [self updateStatusBar];
@@ -1523,7 +1581,7 @@
     if (url) {
         [[NSWorkspace sharedWorkspace] openURL:url];
     }
-    [self appendLog:@"[INFO] 打开浏览器下载镜像..."];
+    [self appendLog:[@"[INFO] " stringByAppendingString:AMLocalizedString(@"lib.log.openDownload")]];
 }
 
 - (void)openUserGuide:(id)sender {
@@ -1531,7 +1589,7 @@
     if (url) {
         [[NSWorkspace sharedWorkspace] openURL:url];
     }
-    [self appendLog:@"[INFO] 打开用户指南..."];
+    [self appendLog:[@"[INFO] " stringByAppendingString:AMLocalizedString(@"lib.log.openGuide")]];
 }
 
 - (void)openSupport:(id)sender {
@@ -1539,7 +1597,7 @@
     if (url) {
         [[NSWorkspace sharedWorkspace] openURL:url];
     }
-    [self appendLog:@"[INFO] 打开支持页面..."];
+    [self appendLog:[@"[INFO] " stringByAppendingString:AMLocalizedString(@"lib.log.openSupport")]];
 }
 
 #pragma mark - Log & Print
@@ -1643,7 +1701,7 @@
 
 - (void)exportLogs:(id)sender {
     NSSavePanel *panel = [NSSavePanel savePanel];
-    panel.allowedContentTypes = @[@"public.plain-text"];
+    panel.allowedContentTypes = @[UTTypePlainText];
     panel.nameFieldStringValue = @"VMStart-logs.txt";
     [panel beginSheetModalForWindow:self.logPanel completionHandler:^(NSInteger result) {
         if (result == NSModalResponseOK && panel.URL) {
@@ -1669,7 +1727,7 @@
 
     // 构建打印内容
     NSMutableAttributedString *printText = [[NSMutableAttributedString alloc] init];
-    [printText appendAttributedString:[[NSAttributedString alloc] initWithString:@"VMStart 日志\n" attributes:@{
+    [printText appendAttributedString:[[NSAttributedString alloc] initWithString:[AMLocalizedString(@"logPanel.title") stringByAppendingString:@"\n"] attributes:@{
         NSFontAttributeName: [NSFont boldSystemFontOfSize:16],
         NSForegroundColorAttributeName: [NSColor blackColor]
     }]];
@@ -1694,17 +1752,17 @@
     printOp.showsProgressPanel = YES;
     [printOp runOperation];
 
-    [self appendLog:@"[INFO] 日志已发送到打印机"];
+    [self appendLog:[@"[INFO] " stringByAppendingString:AMLocalizedString(@"lib.log.printed")]];
 }
 
 - (void)toggleAutoPrint:(id)sender {
     self.autoPrintEnabled = !self.autoPrintEnabled;
     if (self.autoPrintEnabled) {
         [self.autoPrintButton setContentTintColor:[NSColor colorWithRed:0.25 green:0.7 blue:0.35 alpha:1.0]];
-        [self appendLog:@"[INFO] 自动打印已启用"];
+        [self appendLog:[@"[INFO] " stringByAppendingString:AMLocalizedString(@"lib.log.autoPrintOn")]];
     } else {
         [self.autoPrintButton setContentTintColor:[NSColor colorWithRed:0.5 green:0.5 blue:0.55 alpha:1.0]];
-        [self appendLog:@"[INFO] 自动打印已禁用"];
+        [self appendLog:[@"[INFO] " stringByAppendingString:AMLocalizedString(@"lib.log.autoPrintOff")]];
     }
 }
 
@@ -1725,9 +1783,9 @@
     }
 
     if (self.printerAvailable) {
-        [self appendLog:[NSString stringWithFormat:@"[INFO] 检测到打印机：%@", printer.name]];
+        [self appendLog:[@"[INFO] " stringByAppendingString:AMLocalizedStringF(@"lib.log.printerFound", printer.name)]];
     } else {
-        [self appendLog:@"[INFO] 未检测到打印机，打印功能不可用"];
+        [self appendLog:[@"[INFO] " stringByAppendingString:AMLocalizedString(@"lib.log.noPrinter")]];
     }
 }
 
@@ -1756,7 +1814,7 @@
 
     // License list
     NSArray *engines = @[
-        @{@"name": @"QEMU", @"ver": @"GPLv2", @"arch": @"30 binaries, 29+ archs"},
+        @{@"name": @"QEMU", @"ver": @"GPLv2", @"arch": AMLocalizedString(@"lib.license.qemuArch")},
         @{@"name": @"Mini vMac", @"ver": @"GPLv2", @"arch": @"Motorola 68000"},
         @{@"name": @"BasiliskII", @"ver": @"GPLv2", @"arch": @"Motorola 68020/030/040"},
         @{@"name": @"SheepShaver", @"ver": @"GPLv2", @"arch": @"PowerPC G3/G4"},
@@ -1770,8 +1828,8 @@
         @{@"name": @"ARAnyM", @"ver": @"GPLv2", @"arch": @"Motorola 68000 (Atari)"},
         @{@"name": @"OpenMSX", @"ver": @"GPLv2", @"arch": @"Z80 (MSX)"},
         @{@"name": @"Fuse", @"ver": @"GPLv2", @"arch": @"Z80 (ZX Spectrum)"},
-        @{@"name": @"ScummVM", @"ver": @"GPLv3", @"arch": @"Multi-platform"},
-        @{@"name": @"Mednafen", @"ver": @"GPLv2", @"arch": @"Multi-platform"},
+        @{@"name": @"ScummVM", @"ver": @"GPLv3", @"arch": AMLocalizedString(@"lib.license.multiPlatform")},
+        @{@"name": @"Mednafen", @"ver": @"GPLv2", @"arch": AMLocalizedString(@"lib.license.multiPlatform")},
     ];
 
     NSScrollView *scrollView = [[NSScrollView alloc] initWithFrame:NSMakeRect(10, 50, contentView.bounds.size.width - 20, contentView.bounds.size.height - 110)];
@@ -1853,7 +1911,7 @@
     [panel center];
     [panel makeKeyAndOrderFront:nil];
 
-    [self appendLog:@"[INFO] 打开许可证面板"];
+    [self appendLog:[@"[INFO] " stringByAppendingString:AMLocalizedString(@"lib.log.openLicenses")]];
 }
 
 @end

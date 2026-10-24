@@ -7,6 +7,7 @@
 
 #import "VMStartCardView.h"
 #import "VMStartVirtualMachine.h"
+#import "VMStartLocalization.h"
 
 #pragma mark - VMStartCardView
 
@@ -114,9 +115,9 @@
 
         // Use NSPopUpButton - compact width to not block toolbar buttons
         _popupButton = [[NSPopUpButton alloc] initWithFrame:NSMakeRect(8, 4, 100, frame.size.height - 8) pullsDown:NO];
-        [_popupButton addItemWithTitle:@"Simple"];
-        [_popupButton addItemWithTitle:@"Standard"];
-        [_popupButton addItemWithTitle:@"Advanced"];
+        [_popupButton addItemWithTitle:AMLocalizedString(@"mode_simple")];
+        [_popupButton addItemWithTitle:AMLocalizedString(@"mode_standard")];
+        [_popupButton addItemWithTitle:AMLocalizedString(@"mode_advanced")];
         [_popupButton selectItemAtIndex:1]; // Standard
         _popupButton.target = self;
         _popupButton.action = @selector(popupChanged:);

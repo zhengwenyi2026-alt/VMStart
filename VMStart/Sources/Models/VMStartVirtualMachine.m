@@ -811,7 +811,7 @@ static NSString *const kVMConfigFileName = @"vm.json";
         case VMStartStatusStopping: return AMLocalizedString(@"status.stopping");
         case VMStartStatusError: return AMLocalizedString(@"status.error");
     }
-    return @"Unknown";
+    return AMLocalizedString(@"architecture.unknown");
 }
 
 - (NSString *)osDisplayName {
@@ -839,7 +839,7 @@ static NSString *const kVMConfigFileName = @"vm.json";
         case VMStartOSHaiku: return @"Haiku";
         case VMStartOSCommodore: return @"Commodore";
         case VMStartOSMSX: return @"MSX";
-        default: return @"Other";
+        default: return AMLocalizedString(@"vm.os.other");
     }
 }
 
@@ -883,7 +883,7 @@ static NSString *const kVMConfigFileName = @"vm.json";
 
 + (NSArray<NSString *> *)allOSTypeNames {
     return @[
-        @"Other",
+        AMLocalizedString(@"vm.os.other"),
         @"Windows XP",
         @"Windows 7",
         @"Windows 8",
@@ -895,7 +895,7 @@ static NSString *const kVMConfigFileName = @"vm.json";
         @"Fedora",
         @"CentOS",
         @"Arch Linux",
-        @"Linux (Generic)",
+        AMLocalizedString(@"vm.os.linuxGeneric"),
         @"FreeBSD",
         @"OpenBSD",
         @"macOS",
