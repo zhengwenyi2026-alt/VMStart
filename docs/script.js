@@ -28,8 +28,8 @@ function applyLang() {
     localStorage.setItem('vmstart-lang', currentLang);
 }
 
-function copyInstall(btn) {
-    const cmd = document.getElementById('install-cmd').textContent;
+function copyCmd(id, btn) {
+    const cmd = document.getElementById(id).textContent;
     navigator.clipboard.writeText(cmd).then(() => {
         btn.textContent = currentLang === 'zh' ? '已复制' : 'Copied';
         setTimeout(() => { btn.textContent = btn.getAttribute(`data-${currentLang}`); }, 1500);
