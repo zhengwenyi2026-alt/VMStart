@@ -80,7 +80,7 @@ typedef NS_ENUM(NSInteger, VMStartArchitecture) {
     VMStartArchMac68kII,       // 68020/030/040: Mac II/LC/Centris/Quadra → BasiliskII
     VMStartArchMOS6502,        // Commodore 64/128/PET/VIC-20 → VICE
     VMStartArchZ80,            // MSX / ZX Spectrum → openMSX / Fuse
-    VMStartArchMultiSystem,    // ScummVM / Mednafen
+    VMStartArchMultiSystem,    // Mednafen
 };
 
 @interface VMStartVirtualMachine : NSObject <NSSecureCoding>

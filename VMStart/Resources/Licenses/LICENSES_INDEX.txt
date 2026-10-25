@@ -22,8 +22,7 @@ each with their own licenses:
 │ 12  │ ARAnyM               │ GPLv2        │ Motorola 68000 (Atari)           │
 │ 13  │ OpenMSX              │ GPLv2        │ Z80 (MSX)                        │
 │ 14  │ Fuse                 │ GPLv2        │ Z80 (ZX Spectrum)                │
-│ 15  │ ScummVM              │ GPLv3        │ Multi-platform (adventure games) │
-│ 16  │ Mednafen             │ GPLv2        │ Multi-platform (game consoles)   │
+│ 15  │ Mednafen             │ GPLv2        │ Multi-platform (game consoles)   │
 └─────┴──────────────────────┴──────────────┴──────────────────────────────────┘
 
 License Files:
@@ -42,7 +41,6 @@ License Files:
   LICENSE-ARAnyM-GPLv2.txt        - ARAnyM
   LICENSE-OpenMSX-GPLv2.txt       - OpenMSX
   LICENSE-Fuse-GPLv2.txt          - Fuse
-  LICENSE-ScummVM-GPLv3.txt       - ScummVM (GPLv3)
   LICENSE-Mednafen-GPLv2.txt      - Mednafen
 
 Source Repositories:
@@ -61,7 +59,6 @@ Source Repositories:
   ARAnyM:      https://github.com/aranym/aranym
   OpenMSX:     https://github.com/openMSX/openMSX
   Fuse:        https://github.com/fuse-emulator/fuse
-  ScummVM:     https://github.com/scummvm/scummvm
   Mednafen:    https://github.com/libretro-mirrors/mednafen-git
 
 Copyright (c) 2024 zhengwenyi2026-alt. Licensed under GPLv2.

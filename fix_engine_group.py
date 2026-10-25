@@ -29,7 +29,6 @@ engine_files = [
     'AirVMHatariProcess.h', 'AirVMHatariProcess.m',
     'AirVMOpenMSXProcess.h', 'AirVMOpenMSXProcess.m',
     'AirVMFuseProcess.h', 'AirVMFuseProcess.m',
-    'AirVMScummVMProcess.h', 'AirVMScummVMProcess.m',
     'AirVMMednafenProcess.h', 'AirVMMednafenProcess.m',
     'AirVMARAnyMProcess.h', 'AirVMARAnyMProcess.m',
 ]

@@ -1924,7 +1924,6 @@
         @{@"name": @"ARAnyM", @"ver": @"GPLv2", @"arch": @"Motorola 68000 (Atari)"},
         @{@"name": @"OpenMSX", @"ver": @"GPLv2", @"arch": @"Z80 (MSX)"},
         @{@"name": @"Fuse", @"ver": @"GPLv2", @"arch": @"Z80 (ZX Spectrum)"},
-        @{@"name": @"ScummVM", @"ver": @"GPLv3", @"arch": AMLocalizedString(@"lib.license.multiPlatform")},
         @{@"name": @"Mednafen", @"ver": @"GPLv2", @"arch": AMLocalizedString(@"lib.license.multiPlatform")},
     ];
 

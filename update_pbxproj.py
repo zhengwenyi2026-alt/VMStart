@@ -17,7 +17,6 @@ new_files = [
     'AirVMHatariProcess',
     'AirVMOpenMSXProcess',
     'AirVMFuseProcess',
-    'AirVMScummVMProcess',
     'AirVMMednafenProcess',
     'AirVMARAnyMProcess',
 ]

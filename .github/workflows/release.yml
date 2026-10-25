@@ -254,11 +254,11 @@ jobs:
             | Windows | arm64 | VMStart-${{ github.ref_name }}-arm64.exe |
             
             ### Features
-            - 16 emulation engines (QEMU + retro consoles)
+            - 15 emulation engines (QEMU + retro consoles)
             - 33 CPU architectures supported
             - Chromium browser for ISO downloads
             - Log viewer & printer support
-            - 15 engines GPLv2, 1 engine (ScummVM) GPLv3
+            - All 15 engines GPLv2
             
             ### Requirements
             - macOS 14.0+ (Apple Silicon or Intel)

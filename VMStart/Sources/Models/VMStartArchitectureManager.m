@@ -383,8 +383,8 @@
 
     [profiles addObject:[self profileWithName:@"multisystem" displayName:@"Multi-System" arch:VMStartArchMultiSystem
                                        binary:@"" bitWidth:32 category:@"Retro"
-                              machines:@[@"scummvm", @"mednafen-psx", @"mednafen-saturn", @"mednafen-pce",
-                                          @"mednafen-gba", @"mednafen-gb", @"mednafen-nes", @"mednafen-snes"] defaultMachine:@"scummvm"
+                              machines:@[@"mednafen-psx", @"mednafen-saturn", @"mednafen-pce",
+                                          @"mednafen-gba", @"mednafen-gb", @"mednafen-nes", @"mednafen-snes"] defaultMachine:@"mednafen-psx"
                                   cpus:@[@"auto"] defaultCPU:@"auto"
                            minMem:1 maxMem:2048 defaultMem:128 accel:NO]];
 

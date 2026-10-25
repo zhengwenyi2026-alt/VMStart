@@ -1242,7 +1242,6 @@
         case VMStartEngineTypeVICE:
         case VMStartEngineTypeFuse:
         case VMStartEngineTypeOpenMSX:
-        case VMStartEngineTypeScummVM:
         case VMStartEngineTypeMednafen:
         case VMStartEngineTypeHatari:
         case VMStartEngineTypeARAnyM:

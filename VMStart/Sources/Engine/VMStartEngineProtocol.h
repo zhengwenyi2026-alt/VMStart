@@ -24,7 +24,7 @@ typedef NS_ENUM(NSInteger, VMStartEngineType) {
     VMStartEngineTypeHatari     = 10, // Atari ST/STE/TT/Falcon
     VMStartEngineTypeOpenMSX    = 11, // MSX
     VMStartEngineTypeFuse       = 12, // ZX Spectrum
-    VMStartEngineTypeScummVM    = 13, // Adventure game engine
+    // 13 原为 ScummVM，已移除；保留空位，避免已保存虚拟机的引擎编号错位
     VMStartEngineTypeMednafen   = 14, // Multi-system console
     VMStartEngineTypeARAnyM     = 15, // Atari ST/TT/Falcon VM
     VMStartEngineTypeCount      = 16  // Keep last

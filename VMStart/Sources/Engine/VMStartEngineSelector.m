@@ -19,7 +19,6 @@
 #import "VMStartHatariProcess.h"
 #import "VMStartOpenMSXProcess.h"
 #import "VMStartFuseProcess.h"
-#import "VMStartScummVMProcess.h"
 #import "VMStartMednafenProcess.h"
 #import "VMStartARAnyMProcess.h"
 
@@ -73,8 +72,6 @@ static NSDictionary<NSString *, NSNumber *> *EnginePrefixMap(void) {
             @"spectrum":      @(VMStartEngineTypeFuse),
             @"zx":            @(VMStartEngineTypeFuse),
             // Others
-            @"scumm":         @(VMStartEngineTypeScummVM),
-            @"scummvm":       @(VMStartEngineTypeScummVM),
             @"mednafen":      @(VMStartEngineTypeMednafen),
         };
     });
@@ -162,7 +159,6 @@ static NSString *FindExecutableWithAppFallback(NSString *binaryName, NSString *b
         case VMStartEngineTypeHatari:      return [[VMStartHatariProcess alloc] initWithVirtualMachine:vm];
         case VMStartEngineTypeOpenMSX:     return [[VMStartOpenMSXProcess alloc] initWithVirtualMachine:vm];
         case VMStartEngineTypeFuse:        return [[VMStartFuseProcess alloc] initWithVirtualMachine:vm];
-        case VMStartEngineTypeScummVM:     return [[VMStartScummVMProcess alloc] initWithVirtualMachine:vm];
         case VMStartEngineTypeMednafen:    return [[VMStartMednafenProcess alloc] initWithVirtualMachine:vm];
         case VMStartEngineTypeARAnyM:      return [[VMStartARAnyMProcess alloc] initWithVirtualMachine:vm];
         case VMStartEngineTypeQEMU:
@@ -185,7 +181,6 @@ static NSString *FindExecutableWithAppFallback(NSString *binaryName, NSString *b
         case VMStartEngineTypeHatari:     return @"Hatari";
         case VMStartEngineTypeOpenMSX:    return @"openMSX";
         case VMStartEngineTypeFuse:       return @"Fuse";
-        case VMStartEngineTypeScummVM:    return @"ScummVM";
         case VMStartEngineTypeMednafen:   return @"Mednafen";
         case VMStartEngineTypeARAnyM:     return @"ARAnyM";
         default:                        return @"Unknown";
@@ -253,9 +248,6 @@ static NSString *FindExecutableWithAppFallback(NSString *binaryName, NSString *b
         }
         case VMStartEngineTypeFuse: {
             return FindExecutableWithAppFallback(@"fuse", @"Fuse");
-        }
-        case VMStartEngineTypeScummVM: {
-            return FindExecutableWithAppFallback(@"scummvm", @"ScummVM");
         }
         case VMStartEngineTypeMednafen: {
             return FindExecutableWithAppFallback(@"mednafen", @"Mednafen");

@@ -1,13 +1,12 @@
 # VMStart
 
-**多引擎虚拟机管理器** — 16 个仿真引擎 · 33+ CPU 架构 · macOS & Windows 原生支持
+**多引擎虚拟机管理器** — 15 个仿真引擎 · 33+ CPU 架构 · macOS & Windows 原生支持
 
 ## 许可证
 
 VMStart 采用 **GNU General Public License Version 2 or later** 许可证。
 
-- 15 个引擎采用 GPLv2
-- 1 个引擎（ScummVM）采用 GPLv3
+- 全部 15 个引擎均采用 GPLv2
 - 项目整体许可证为 GPLv2-or-later，与所有组件兼容
 
 完整许可证文本见 [LICENSE](LICENSE) 文件。各引擎独立许可证见 `VMStart/Resources/Licenses/` 目录。
@@ -29,8 +28,7 @@ VMStart 采用 **GNU General Public License Version 2 or later** 许可证。
 | Hatari | 68000 (Atari) | GPLv2 |
 | ARAnyM | 68000 (Atari) | GPLv2 |
 | OpenMSX | Z80 (MSX) | GPLv2 |
-| Fuse | Z80 (ZX Spectrum) | GPLv3 |
-| ScummVM | 多平台冒险游戏 | GPLv3 |
+| Fuse | Z80 (ZX Spectrum) | GPLv2 |
 | Mednafen | 多平台游戏机 | GPLv2 |
 
 ## 下载
@@ -70,7 +68,7 @@ VMStart 采用 **GNU General Public License Version 2 or later** 许可证。
 
 ## 源码
 
-完整源码（含 16 个引擎）：https://github.com/zhengwenyi2026-alt/VMStart
+完整源码（含 15 个引擎）：https://github.com/zhengwenyi2026-alt/VMStart
 
 ## 版权
 

@@ -28,6 +28,14 @@ function applyLang() {
     localStorage.setItem('vmstart-lang', currentLang);
 }
 
+function copyInstall(btn) {
+    const cmd = document.getElementById('install-cmd').textContent;
+    navigator.clipboard.writeText(cmd).then(() => {
+        btn.textContent = currentLang === 'zh' ? '已复制' : 'Copied';
+        setTimeout(() => { btn.textContent = btn.getAttribute(`data-${currentLang}`); }, 1500);
+    });
+}
+
 function toggleMobileMenu() {
     const navLinks = document.querySelector('.nav-links');
     if (navLinks) {
