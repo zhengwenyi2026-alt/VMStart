@@ -22,6 +22,7 @@
                 <a href="#engines" data-zh="引擎" data-en="Engines">引擎</a>
                 <a href="#download" data-zh="下载" data-en="Download">下载</a>
                 <a href="#docs" data-zh="文档" data-en="Docs">文档</a>
+                <a href="#terminal" data-zh="终端" data-en="Terminal">终端</a>
                 <a href="https://github.com/zhengwenyi2026-alt/VMStart" target="_blank" class="github-nav">GitHub</a>
                 <button class="lang-toggle" onclick="toggleLang()">
                     <span id="lang-label">EN</span>
@@ -91,6 +92,11 @@
                     <div class="feature-icon">🖨️</div>
                     <h3 data-zh="日志与打印" data-en="Logs & Printing">日志与打印</h3>
                     <p data-zh="实时日志查看、导出和打印功能，支持自动打印新日志" data-en="Real-time log viewer, export and print, with auto-print for new entries">实时日志查看、导出和打印功能，支持自动打印新日志</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⌨️</div>
+                    <h3 data-zh="终端操控" data-en="Terminal Control">终端操控</h3>
+                    <p data-zh="内置 vmstart 命令，在终端列出、启动、停止虚拟机，下载镜像并实时查看进度" data-en="Built-in vmstart command to list, start and stop VMs, download images and watch progress from the terminal">内置 vmstart 命令，在终端列出、启动、停止虚拟机，下载镜像并实时查看进度</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🔓</div>
@@ -279,6 +285,64 @@
                     </ol>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- Terminal Section -->
+    <section id="terminal" class="terminal">
+        <div class="container">
+            <h2 class="section-title" data-zh="终端操控" data-en="Terminal Control">终端操控</h2>
+            <p class="section-subtitle" data-zh="不打开界面，也能用 vmstart 命令管理虚拟机和下载镜像（macOS）" data-en="Manage VMs and download images with the vmstart command, no window needed (macOS)">不打开界面，也能用 vmstart 命令管理虚拟机和下载镜像（macOS）</p>
+
+            <div class="install-box">
+                <div class="install-title" data-zh="启用 vmstart 命令" data-en="Enable the vmstart command">启用 vmstart 命令</div>
+                <div class="install-cmd">
+                    <code id="cli-link-cmd">sudo mkdir -p /usr/local/bin &amp;&amp; sudo ln -sf /Applications/VMStart.app/Contents/Resources/CLI/vmstart /usr/local/bin/vmstart</code>
+                    <button class="install-copy" onclick="copyCmd('cli-link-cmd', this)" data-zh="复制" data-en="Copy">复制</button>
+                </div>
+                <div class="install-hint" data-zh="用一行命令安装的已自动启用，可跳过。手动安装 ZIP 的，在终端执行一次即可，之后输入 vmstart 查看全部命令。" data-en="Already enabled if you used the one-line installer. For a manual ZIP install, run this once, then type vmstart to see all commands.">用一行命令安装的已自动启用，可跳过。手动安装 ZIP 的，在终端执行一次即可，之后输入 vmstart 查看全部命令。</div>
+            </div>
+
+            <div class="term-window">
+                <div class="term-bar"><span></span><span></span><span></span></div>
+<pre class="term-body"><span class="term-prompt">$</span> vmstart list
+<span class="term-out">名称          系统         架构     核心  内存     磁盘
+Ubuntu 24.04  Ubuntu       AArch64  4     4 GB     64 GB
+Win11         Windows 11   x86_64   4     8 GB     80 GB</span>
+<span class="term-prompt">$</span> vmstart start ubuntu
+<span class="term-out">已发送启动命令：ubuntu</span>
+<span class="term-prompt">$</span> vmstart download https://example.com/debian.iso --add
+<span class="term-out">已开始下载：https://example.com/debian.iso</span>
+<span class="term-prompt">$</span> vmstart watch
+<span class="term-out">1. debian.iso
+   [██████████████░░░░░░░░░░░░░░░░] ↓ 312 MB/660 MB • 47% • 18 MB/s • 还剩 20 秒 • 完成后自动添加</span></pre>
+            </div>
+
+            <div class="cli-grid">
+                <div class="doc-card">
+                    <h3 data-zh="虚拟机" data-en="Virtual Machines">虚拟机</h3>
+                    <dl class="cli-list">
+                        <dt>vmstart list</dt><dd data-zh="列出所有虚拟机" data-en="List virtual machines">列出所有虚拟机</dd>
+                        <dt data-zh="vmstart info &lt;名称&gt;" data-en="vmstart info &lt;name&gt;">vmstart info &lt;名称&gt;</dt><dd data-zh="显示虚拟机配置" data-en="Show VM configuration">显示虚拟机配置</dd>
+                        <dt data-zh="vmstart show [名称]" data-en="vmstart show [name]">vmstart show [名称]</dt><dd data-zh="打开 VMStart 并选中虚拟机" data-en="Open VMStart and select the VM">打开 VMStart 并选中虚拟机</dd>
+                        <dt data-zh="vmstart start &lt;名称&gt;" data-en="vmstart start &lt;name&gt;">vmstart start &lt;名称&gt;</dt><dd data-zh="启动虚拟机" data-en="Start a VM">启动虚拟机</dd>
+                        <dt data-zh="vmstart stop &lt;名称&gt;" data-en="vmstart stop &lt;name&gt;">vmstart stop &lt;名称&gt;</dt><dd data-zh="停止虚拟机" data-en="Stop a VM">停止虚拟机</dd>
+                        <dt data-zh="vmstart add &lt;镜像文件&gt;" data-en="vmstart add &lt;image&gt;">vmstart add &lt;镜像文件&gt;</dt><dd data-zh="按最佳配置把本地镜像添加为虚拟机" data-en="Add a local image as a VM with the best configuration">按最佳配置把本地镜像添加为虚拟机</dd>
+                    </dl>
+                </div>
+                <div class="doc-card">
+                    <h3 data-zh="镜像下载" data-en="Image Downloads">镜像下载</h3>
+                    <dl class="cli-list">
+                        <dt data-zh="vmstart download &lt;网址&gt; [--add]" data-en="vmstart download &lt;url&gt; [--add]">vmstart download &lt;网址&gt; [--add]</dt><dd data-zh="下载镜像，--add 表示完成后自动添加" data-en="Download an image; --add adds it when finished">下载镜像，--add 表示完成后自动添加</dd>
+                        <dt>vmstart watch</dt><dd data-zh="在终端实时显示下载进度" data-en="Live download progress in the terminal">在终端实时显示下载进度</dd>
+                        <dt>vmstart downloads [--json]</dt><dd data-zh="查看下载列表" data-en="Print the download list">查看下载列表</dd>
+                        <dt data-zh="vmstart pause | resume | cancel [序号]" data-en="vmstart pause | resume | cancel [index]">vmstart pause | resume | cancel [序号]</dt><dd data-zh="暂停、继续或取消下载" data-en="Pause, resume or cancel a download">暂停、继续或取消下载</dd>
+                        <dt>vmstart auto-add on | off</dt><dd data-zh="下载完成后是否自动添加" data-en="Toggle auto-add after download">下载完成后是否自动添加</dd>
+                        <dt data-zh="vmstart open &lt;网址&gt;" data-en="vmstart open &lt;url&gt;">vmstart open &lt;网址&gt;</dt><dd data-zh="在镜像工具中打开网页" data-en="Open a page in the image tool">在镜像工具中打开网页</dd>
+                    </dl>
+                </div>
+            </div>
+            <p class="download-note" data-zh="名称可以是虚拟机全名、名称开头几个字或 ID。输入 vmstart help 查看完整帮助。" data-en="A name can be the full VM name, its first few letters or its ID. Run vmstart help for full usage.">名称可以是虚拟机全名、名称开头几个字或 ID。输入 vmstart help 查看完整帮助。</p>
         </div>
     </section>
 
