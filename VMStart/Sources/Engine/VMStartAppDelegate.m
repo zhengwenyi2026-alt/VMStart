@@ -15,6 +15,7 @@
 
 @interface VMStartAppDelegate ()
 @property (nonatomic, strong) VMStartLibraryWindowController *libraryWC;
+@property (nonatomic, strong) NSMutableArray<NSURL *> *pendingURLs;
 @end
 
 @implementation VMStartAppDelegate
@@ -31,6 +32,8 @@
     [self setupMainMenu];
     self.libraryWC = [[VMStartLibraryWindowController alloc] init];
     [self.libraryWC showWindow:nil];
+    for (NSURL *url in self.pendingURLs) [self handleCommandURL:url];
+    self.pendingURLs = nil;
     // Auto-start VMs marked for auto-start
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [self autoStartVMs];
@@ -56,6 +59,79 @@
     return YES;
 }
 
+- (void)application:(NSApplication *)application openURLs:(NSArray<NSURL *> *)urls {
+    // 冷启动时 URL 可能早于库窗口创建到达，先缓存
+    if (!self.libraryWC) {
+        if (!self.pendingURLs) self.pendingURLs = [NSMutableArray array];
+        [self.pendingURLs addObjectsFromArray:urls];
+        return;
+    }
+    for (NSURL *url in urls) [self handleCommandURL:url];
+}
+
+// 命令格式：vmstart://add?path=…、vmstart://start?name=…、vmstart://stop?name=…、vmstart://show?name=…
+- (void)handleCommandURL:(NSURL *)url {
+    if (![url.scheme.lowercaseString isEqualToString:@"vmstart"]) return;
+    NSString *command = url.host.lowercaseString;
+    NSURLComponents *components = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
+    NSMutableDictionary<NSString *, NSString *> *query = [NSMutableDictionary dictionary];
+    for (NSURLQueryItem *item in components.queryItems) {
+        if (item.value) query[item.name] = item.value;
+    }
+
+    if ([command isEqualToString:@"add"]) {
+        if (query[@"path"].length > 0) [self.libraryWC addVMFromImageURL:[NSURL fileURLWithPath:query[@"path"]]];
+        return;
+    }
+
+    if (![@[@"start", @"stop", @"show"] containsObject:command ?: @""]) return;
+    NSString *key = query[@"id"] ?: query[@"name"];
+    [self.libraryWC refreshVMList];
+    if (key.length == 0) {
+        [self.libraryWC.window makeKeyAndOrderFront:nil];
+        [NSApp activateIgnoringOtherApps:YES];
+        return;
+    }
+    VMStartVirtualMachine *vm = [self.libraryWC vmMatching:key];
+    if (!vm) {
+        [NSApp activateIgnoringOtherApps:YES];
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = AMLocalizedString(@"cli.vmNotFound.title");
+        alert.informativeText = [NSString stringWithFormat:AMLocalizedString(@"cli.vmNotFound.message"), key];
+        [alert runModal];
+        return;
+    }
+    [self.libraryWC selectVMWithID:vm.vmIdentifier];
+    if ([command isEqualToString:@"start"]) [self.libraryWC startVMByID:vm.vmIdentifier];
+    else if ([command isEqualToString:@"stop"]) [self.libraryWC stopVMByID:vm.vmIdentifier];
+}
+
+// 把应用内的 vmstart 脚本链接到 PATH 中第一个可写的目录
+- (void)installCommandLineTool:(id)sender {
+    NSString *script = [[NSBundle mainBundle] pathForResource:@"vmstart" ofType:nil inDirectory:@"CLI"];
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *installedPath = nil;
+    for (NSString *dir in @[@"/opt/homebrew/bin", @"/usr/local/bin"]) {
+        if (!script || ![fm isWritableFileAtPath:dir]) continue;
+        NSString *link = [dir stringByAppendingPathComponent:@"vmstart"];
+        [fm removeItemAtPath:link error:nil];
+        if ([fm createSymbolicLinkAtPath:link withDestinationPath:script error:nil]) {
+            installedPath = link;
+            break;
+        }
+    }
+    NSAlert *alert = [[NSAlert alloc] init];
+    if (installedPath) {
+        alert.messageText = AMLocalizedString(@"cli.install.done.title");
+        alert.informativeText = [NSString stringWithFormat:AMLocalizedString(@"cli.install.done.message"), installedPath];
+    } else {
+        alert.alertStyle = NSAlertStyleWarning;
+        alert.messageText = AMLocalizedString(@"cli.install.failed.title");
+        alert.informativeText = [NSString stringWithFormat:AMLocalizedString(@"cli.install.failed.message"), script ?: @"vmstart"];
+    }
+    [alert runModal];
+}
+
 - (void)setupMainMenu {
     NSMenu *mainMenu = [[NSMenu alloc] init];
     // App menu
@@ -68,6 +144,9 @@
     prefsItem.keyEquivalent = @",";
     prefsItem.action = @selector(showPreferences:);
     [appMenu addItem:prefsItem];
+    NSMenuItem *cliItem = [[NSMenuItem alloc] initWithTitle:AMLocalizedString(@"menu.installCLI") action:@selector(installCommandLineTool:) keyEquivalent:@""];
+    cliItem.target = self;
+    [appMenu addItem:cliItem];
     [appMenu addItem:[NSMenuItem separatorItem]];
     NSMenuItem *hideItem = [[NSMenuItem alloc] init];
     hideItem.title = AMLocalizedString(@"menu.hide");

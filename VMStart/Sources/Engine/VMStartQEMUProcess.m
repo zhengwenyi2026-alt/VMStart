@@ -57,6 +57,9 @@
     self.qemuTask.arguments = args;
     self.stdoutPipe = [NSPipe pipe];
     self.stderrPipe = [NSPipe pipe];
+    // -monitor stdio 需要可写的标准输入，停止/暂停等监视器命令经此发送
+    self.monitorPipe = [NSPipe pipe];
+    self.qemuTask.standardInput = self.monitorPipe;
     self.qemuTask.standardOutput = self.stdoutPipe;
     self.qemuTask.standardError = self.stderrPipe;
     [[self.stdoutPipe fileHandleForReading] readInBackgroundAndNotify];

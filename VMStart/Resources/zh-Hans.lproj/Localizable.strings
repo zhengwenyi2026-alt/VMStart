@@ -553,3 +553,15 @@
 "config.summary.memory" = "内存：%ld %@";
 "config.summary.usb" = "USB：%@";
 "config.summary.engine" = "引擎：%@";
+
+/* 浏览器镜像导入 */
+"browserImport.invalid.title" = "无法添加镜像";
+"browserImport.invalid.message" = "镜像不存在或文件格式不受支持。";
+"browserImport.notes" = "由 VMStart 镜像下载工具按最佳配置创建，安装镜像：%@";
+"cli.vmNotFound.title" = "未找到虚拟机";
+"cli.vmNotFound.message" = "没有名为“%@”的虚拟机。";
+"menu.installCLI" = "安装命令行工具…";
+"cli.install.done.title" = "命令行工具已安装";
+"cli.install.done.message" = "已安装到 %@。在终端输入 vmstart help 查看全部命令。";
+"cli.install.failed.title" = "无法安装命令行工具";
+"cli.install.failed.message" = "没有可写入的 /opt/homebrew/bin 或 /usr/local/bin。可在终端手动执行：\nsudo ln -sf \"%@\" /usr/local/bin/vmstart";

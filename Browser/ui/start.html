@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="start.css">
+<title>VMStart 镜像工具</title>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">
+    <img src="../assets/app_icon.png" alt="">
+    <div><h1 id="brand-name"></h1><p id="subtitle"></p></div>
+  </div>
+  <form id="search"><input id="q" autofocus><button id="go"></button></form>
+  <section>
+    <div class="section-title"><h2 id="recommended-title"></h2><span id="device"></span></div>
+    <div class="cards">
+      <a class="card" href="https://www.microsoft.com/software-download/windows11"><span class="logo windows">⊞</span><div><b>Windows 11</b><small id="win-note"></small></div><span class="arrow">›</span></a>
+      <a class="card" href="https://ubuntu.com/download/desktop"><span class="logo ubuntu">◉</span><div><b>Ubuntu Desktop</b><small id="ubuntu-note"></small></div><span class="arrow">›</span></a>
+      <a class="card" href="https://www.fedoraproject.org/workstation/download"><span class="logo fedora">f</span><div><b>Fedora Workstation</b><small id="fedora-note"></small></div><span class="arrow">›</span></a>
+      <a class="card" href="https://www.debian.org/distrib/"><span class="logo debian">D</span><div><b>Debian</b><small id="debian-note"></small></div><span class="arrow">›</span></a>
+    </div>
+  </section>
+  <section class="how">
+    <img src="../assets/add_to_vmstart.png" alt="">
+    <div><b id="how-title"></b><p id="how-text"></p></div>
+  </section>
+</div>
+<script src="start.js"></script>
+</body>
+</html>

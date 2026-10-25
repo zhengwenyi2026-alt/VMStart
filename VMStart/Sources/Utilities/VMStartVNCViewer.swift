@@ -124,6 +124,8 @@ enum VNCButton {
     required init?(coder c: NSCoder) { super.init(coder: c); common() }
     private func common() {
         wantsLayer = true
+        // macOS 14 起视图默认不裁剪绘制，需显式开启，否则会盖住工具栏
+        clipsToBounds = true
         layer?.backgroundColor = NSColor.black.cgColor
     }
     override public var acceptsFirstResponder: Bool { true }
@@ -140,11 +142,12 @@ enum VNCButton {
     }
 
     @objc public func disconnect() {
+        let wasActive = worker != nil || isConnected
         running = false; isConnected = false
         inputStream?.close(); outputStream?.close()
         inputStream = nil; outputStream = nil
         worker?.cancel(); worker = nil
-        DispatchQueue.main.async { [weak self] in self?.onDisconnected?() }
+        if wasActive { DispatchQueue.main.async { [weak self] in self?.onDisconnected?() } }
     }
 
     deinit { disconnect() }
@@ -154,7 +157,17 @@ enum VNCButton {
     @objc private func run() {
         autoreleasepool {
             do {
-                try openSocket()
+                // QEMU 刚启动时 VNC 端口可能尚未监听，最多重试约 15 秒
+                var attempt = 0
+                while true {
+                    do { try openSocket(); break } catch {
+                        attempt += 1
+                        inputStream?.close(); outputStream?.close()
+                        inputStream = nil; outputStream = nil
+                        if attempt >= 30 || !running || Thread.current.isCancelled { throw error }
+                        Thread.sleep(forTimeInterval: 0.5)
+                    }
+                }
                 try handshake()
                 try serverInit()
                 isConnected = true
@@ -202,6 +215,8 @@ enum VNCButton {
         try writeBytes([1])  // None
         let result = try readU32()
         guard result == 0 else { throw VNCError.securityFailed(result) }
+        // ClientInit：共享会话，服务端收到后才会发送 ServerInit
+        try writeBytes([1])
     }
 
     // ─── ServerInit ───
@@ -218,6 +233,10 @@ enum VNCButton {
         let nameLen = try readU32()
         if nameLen > 0 { let _ = try readBytes(Int(nameLen)) }
         fb = [UInt8](repeating: 0, count: framebufferWidth * framebufferHeight * bytesPerPixel)
+        // SetEncodings：Raw(0) + DesktopSize(-223)，客户机切换分辨率时能收到新尺寸
+        var enc: [UInt8] = [2, 0]
+        enc += be16(2); enc += be32(0); enc += be32(UInt32(bitPattern: -223))
+        try writeBytes(enc)
         vlog("VNC: \(framebufferWidth)x\(framebufferHeight) \(bPP*8)bpp")
     }
 
@@ -305,7 +324,7 @@ enum VNCButton {
     override public func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         NSColor.black.setFill()
-        dirtyRect.fill()
+        bounds.intersection(dirtyRect).fill()
         imgLock.lock()
         let img = displayImage
         imgLock.unlock()

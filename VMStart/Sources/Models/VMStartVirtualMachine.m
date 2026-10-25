@@ -404,6 +404,38 @@ static NSString *const kVMConfigFileName = @"vm.json";
     return [NSString stringWithFormat:@"/opt/homebrew/bin/%@", binaryName];
 }
 
+// 查询 QEMU 是否支持某个设备或字符设备后端，结果按二进制与类别缓存
++ (BOOL)qemuBinary:(NSString *)binary supports:(NSString *)name kind:(NSString *)kind {
+    static NSMutableDictionary<NSString *, NSString *> *cache;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ cache = [NSMutableDictionary dictionary]; });
+    NSString *key = [NSString stringWithFormat:@"%@|%@", binary, kind];
+    NSString *help;
+    @synchronized (cache) { help = cache[key]; }
+    if (!help) {
+        if (![[NSFileManager defaultManager] isExecutableFileAtPath:binary]) return NO;
+        NSTask *task = [[NSTask alloc] init];
+        task.executableURL = [NSURL fileURLWithPath:binary];
+        task.arguments = @[@"-machine", @"none", kind, @"help"];
+        NSPipe *pipe = [NSPipe pipe];
+        task.standardOutput = pipe;
+        task.standardError = pipe;
+        task.standardInput = [NSFileHandle fileHandleWithNullDevice];
+        if (![task launchAndReturnError:nil]) return NO;
+        NSData *data = [[pipe fileHandleForReading] readDataToEndOfFile];
+        [task waitUntilExit];
+        help = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] ?: @"";
+        @synchronized (cache) { cache[key] = help; }
+    }
+    if ([kind isEqualToString:@"-device"]) {
+        return [help containsString:[NSString stringWithFormat:@"name \"%@\"", name]];
+    }
+    for (NSString *line in [help componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]) {
+        if ([[line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]] isEqualToString:name]) return YES;
+    }
+    return NO;
+}
+
 - (NSArray<NSString *> *)buildQEMUArguments {
     NSMutableArray *args = [NSMutableArray array];
     BOOL isAppleSiliconHost = [self isAppleSiliconHost];
@@ -443,7 +475,8 @@ static NSString *const kVMConfigFileName = @"vm.json";
     }
     // Acceleration
     if (self.enableAcceleration) {
-        if (isAppleSiliconHost && (isAArch64 || self.architecture == VMStartArchX86_64)) {
+        BOOL hvfCompatible = (isAppleSiliconHost && isAArch64) || (!isAppleSiliconHost && self.architecture == VMStartArchX86_64);
+        if (hvfCompatible) {
             [args addObject:@"-accel"];
             [args addObject:@"hvf"];
         }
@@ -511,7 +544,7 @@ static NSString *const kVMConfigFileName = @"vm.json";
     }
     // Network
     [args addObject:@"-netdev"];
-    [args addObject:[NSString stringWithFormat:@"user,id=net0,hostfwd=tcp::%ld-:22", (long)(2200 + arc4random_uniform(1000))]];
+    [args addObject:[NSString stringWithFormat:@"user,id=net0,hostfwd=tcp:127.0.0.1:%ld-:22", (long)(2200 + arc4random_uniform(1000))]];
     [args addObject:@"-device"];
     if (self.architecture == VMStartArchX86_64 || self.architecture == VMStartArchX86) {
         [args addObject:@"e1000,netdev=net0"];
@@ -519,17 +552,23 @@ static NSString *const kVMConfigFileName = @"vm.json";
         [args addObject:@"virtio-net-pci,netdev=net0"];
     }
     // Display - 3D acceleration + VRAM + multi-monitor
+    NSString *display = self.displayType.length > 0 ? self.displayType : @"cocoa";
     [args addObject:@"-display"];
-    [args addObject:self.displayType.length > 0 ? self.displayType : @"cocoa"];
-    NSString *vgaDevice = @"virtio-gpu-pci";
-    if (self.enable3DAcceleration) {
-        vgaDevice = [NSString stringWithFormat:@"virtio-gpu-gl-pci"];
+    [args addObject:display];
+    NSString *qemuBinary = [self qemuBinaryPath];
+    BOOL displayHasGL = [display containsString:@"gl=on"] || [display containsString:@"gl=es"] || [display containsString:@"gl=core"];
+    NSInteger vramMB = self.vramSizeMB > 0 ? self.vramSizeMB : 128;
+    NSString *vgaDevice;
+    if (self.enable3DAcceleration && displayHasGL &&
+        [VMStartVirtualMachine qemuBinary:qemuBinary supports:@"virtio-gpu-gl-pci" kind:@"-device"]) {
+        vgaDevice = @"virtio-gpu-gl-pci";
     } else if (self.architecture == VMStartArchX86 || self.architecture == VMStartArchX86_64) {
-        vgaDevice = @"VGA";  // std VGA for x86
+        vgaDevice = [NSString stringWithFormat:@"VGA,vgamem_mb=%ld", (long)MIN(MAX(vramMB, 1), 512)];
+    } else {
+        vgaDevice = @"virtio-gpu-pci";
     }
-    NSInteger vramKB = self.vramSizeMB > 0 ? self.vramSizeMB * 1024 : 131072;
     [args addObject:@"-device"];
-    [args addObject:[NSString stringWithFormat:@"%@,vgamem_kb=%ld", vgaDevice, (long)vramKB]];
+    [args addObject:vgaDevice];
     if (self.enableHiDPI && self.monitorCount > 1) {
         // Add extra display heads
         for (NSInteger i = 1; i < self.monitorCount; i++) {
@@ -539,7 +578,7 @@ static NSString *const kVMConfigFileName = @"vm.json";
     }
     if (self.vncPort > 0) {
         [args addObject:@"-vnc"];
-        [args addObject:[NSString stringWithFormat:@":%ld", (long)(self.vncPort - 5900)]];
+        [args addObject:[NSString stringWithFormat:@"127.0.0.1:%ld", (long)(self.vncPort - 5900)]];
     }
     // Audio with sound card model selection
     if (self.enableAudio && self.enableSoundCard) {
@@ -623,11 +662,19 @@ static NSString *const kVMConfigFileName = @"vm.json";
         [args addObject:[NSString stringWithFormat:@"virtio-9p-pci,fsdev=%@,mount_tag=%@", devId, mountTag]];
     }
     // Shared clipboard & drag-drop via qemu-vdagent
+    NSString *agentBackend = nil;
     if (self.enableSharedClipboard || self.enableDragDrop) {
+        if ([VMStartVirtualMachine qemuBinary:qemuBinary supports:@"qemu-vdagent" kind:@"-chardev"]) {
+            agentBackend = @"qemu-vdagent,id=vdagent,name=vdagent,clipboard=on";
+        } else if ([VMStartVirtualMachine qemuBinary:qemuBinary supports:@"spicevmc" kind:@"-chardev"]) {
+            agentBackend = @"spicevmc,id=vdagent,name=vdagent";
+        }
+    }
+    if (agentBackend) {
         [args addObject:@"-device"];
         [args addObject:@"virtio-serial-pci,id=virtio-serial0"];
         [args addObject:@"-chardev"];
-        [args addObject:@"spicevmc,id=vdagent,name=vdagent"];
+        [args addObject:agentBackend];
         [args addObject:@"-device"];
         [args addObject:@"virtserialport,chardev=vdagent,name=com.redhat.spice.0"];
     }
@@ -943,6 +990,65 @@ static NSString *const kVMConfigFileName = @"vm.json";
         default:
             return @{@"arch": @(VMStartArchX86_64), @"machine": @"pc-q35", @"cpu": @"host", @"cores": @(2), @"memMB": @(2048), @"diskGB": @(30), @"vram": @(256)};
     }
+}
+
++ (VMStartOSType)osTypeForImageFilename:(NSString *)filename {
+    NSString *name = filename.lowercaseString;
+    if ([name containsString:@"windowsserver"] || [name containsString:@"windows_server"] || [name containsString:@"winserver"]) return VMStartOSWindowsServer;
+    if ([name containsString:@"windows11"] || [name containsString:@"windows_11"] || [name containsString:@"win11"]) return VMStartOSWindows11;
+    if ([name containsString:@"windows10"] || [name containsString:@"windows_10"] || [name containsString:@"win10"]) return VMStartOSWindows10;
+    if ([name containsString:@"windows8"] || [name containsString:@"windows_8"] || [name containsString:@"win8"]) return VMStartOSWindows8;
+    if ([name containsString:@"windows7"] || [name containsString:@"windows_7"] || [name containsString:@"win7"]) return VMStartOSWindows7;
+    if ([name containsString:@"windowsxp"] || [name containsString:@"windows_xp"] || [name containsString:@"winxp"]) return VMStartOSWindowsXP;
+    if ([name containsString:@"ubuntu"] || [name containsString:@"kubuntu"] || [name containsString:@"lubuntu"] || [name containsString:@"xubuntu"]) return VMStartOSUbuntu;
+    if ([name containsString:@"debian"]) return VMStartOSDebian;
+    if ([name containsString:@"fedora"]) return VMStartOSFedora;
+    if ([name containsString:@"centos"] || [name containsString:@"rocky"] || [name containsString:@"alma"] || [name containsString:@"rhel"]) return VMStartOSCentOS;
+    if ([name containsString:@"archlinux"] || [name containsString:@"arch-linux"] || [name hasPrefix:@"arch-"]) return VMStartOSArch;
+    if ([name containsString:@"freebsd"]) return VMStartOSFreeBSD;
+    if ([name containsString:@"openbsd"]) return VMStartOSOpenBSD;
+    if ([name containsString:@"android"]) return VMStartOSAndroid;
+    if ([name containsString:@"reactos"]) return VMStartOSReactOS;
+    if ([name containsString:@"haiku"]) return VMStartOSHaiku;
+    if ([name containsString:@"macos"] || [name containsString:@"osx"]) return VMStartOSMacOSX;
+    if ([name containsString:@"linux"] || [name containsString:@"mint"] || [name containsString:@"manjaro"] || [name containsString:@"opensuse"] || [name containsString:@"kali"] || [name containsString:@"alpine"] || [name containsString:@"deepin"]) return VMStartOSLinux;
+    return VMStartOSOther;
+}
+
++ (VMStartArchitecture)architectureForImageFilename:(NSString *)filename {
+    NSString *name = filename.lowercaseString;
+    if ([name containsString:@"arm64"] || [name containsString:@"aarch64"] || [name containsString:@"armv8"]) return VMStartArchAArch64;
+    if ([name containsString:@"riscv64"]) return VMStartArchRISCV64;
+    if ([name containsString:@"ppc64"]) return VMStartArchPPC64;
+    if ([name containsString:@"i386"] || [name containsString:@"i686"] || [name containsString:@"x86-32"]) return VMStartArchX86;
+    return VMStartArchX86_64;
+}
+
++ (NSDictionary *)bestConfigForOSType:(VMStartOSType)osType architecture:(VMStartArchitecture)architecture {
+    BOOL modernWindows = osType == VMStartOSWindows10 || osType == VMStartOSWindows11 || osType == VMStartOSWindowsServer;
+    BOOL linux = osType == VMStartOSUbuntu || osType == VMStartOSDebian || osType == VMStartOSFedora || osType == VMStartOSCentOS || osType == VMStartOSArch || osType == VMStartOSLinux;
+    NSInteger hostCores = MAX(1, NSProcessInfo.processInfo.processorCount);
+    NSInteger hostMemoryMB = (NSInteger)(NSProcessInfo.processInfo.physicalMemory / (1024 * 1024));
+    NSInteger cores = MIN(modernWindows ? 4 : (linux ? 4 : 2), MAX(1, hostCores / 2));
+    NSInteger memoryMB = modernWindows ? 8192 : (linux ? 4096 : 2048);
+    memoryMB = MIN(memoryMB, MAX(1024, hostMemoryMB / 2));
+    NSInteger diskGB = modernWindows ? 80 : (linux ? 40 : 30);
+    NSString *machine = architecture == VMStartArchAArch64 ? @"virt" : @"pc-q35";
+#if defined(__arm64__)
+    BOOL nativeAcceleration = architecture == VMStartArchAArch64;
+#else
+    BOOL nativeAcceleration = architecture == VMStartArchX86_64 || architecture == VMStartArchX86;
+#endif
+    return @{
+        @"machine": machine,
+        @"cpu": nativeAcceleration ? @"host" : @"default",
+        @"cores": @(cores),
+        @"memMB": @(memoryMB),
+        @"diskGB": @(diskGB),
+        @"vram": @(modernWindows ? 512 : 256),
+        @"tpm": @(osType == VMStartOSWindows11),
+        @"acceleration": @(nativeAcceleration),
+    };
 }
 
 + (NSString *)displayNameForArchitecture:(VMStartArchitecture)arch {

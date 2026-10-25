@@ -1081,6 +1081,78 @@
     [self updateStatusBar];
 }
 
+- (void)addVMFromImageURL:(NSURL *)imageURL {
+    NSString *path = imageURL.path.stringByStandardizingPath;
+    NSSet *allowed = [NSSet setWithArray:@[@"iso", @"img", @"qcow2", @"vmdk", @"vdi", @"vhd", @"vhdx"]];
+    BOOL isDirectory = NO;
+    BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory];
+    if (!exists || isDirectory || ![allowed containsObject:path.pathExtension.lowercaseString]) {
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = AMLocalizedString(@"browserImport.invalid.title");
+        alert.informativeText = AMLocalizedString(@"browserImport.invalid.message");
+        [alert runModal];
+        return;
+    }
+
+    NSString *filename = path.lastPathComponent;
+    NSString *name = [[filename stringByDeletingPathExtension] stringByReplacingOccurrencesOfString:@"_" withString:@" "];
+    VMStartOSType osType = [VMStartVirtualMachine osTypeForImageFilename:filename];
+    VMStartArchitecture architecture = [VMStartVirtualMachine architectureForImageFilename:filename];
+    NSDictionary *config = [VMStartVirtualMachine bestConfigForOSType:osType architecture:architecture];
+    VMStartVirtualMachine *vm = [VMStartVirtualMachine virtualMachineWithName:name architecture:architecture];
+    vm.osType = osType;
+    vm.machineType = config[@"machine"];
+    vm.cpuModel = config[@"cpu"];
+    vm.cpuCores = [config[@"cores"] integerValue];
+    vm.cpuSockets = 1;
+    vm.cpuCoresPerSocket = vm.cpuCores;
+    vm.memoryValue = [config[@"memMB"] integerValue];
+    vm.memoryUnit = @"MB";
+    vm.diskSizeValue = [config[@"diskGB"] integerValue];
+    vm.diskSizeUnit = @"GB";
+    vm.vramSizeMB = [config[@"vram"] integerValue];
+    vm.enableTPM = [config[@"tpm"] boolValue];
+    vm.enableAcceleration = [config[@"acceleration"] boolValue];
+    vm.enable3DAcceleration = vm.enableAcceleration;
+    vm.enableHiDPI = YES;
+    vm.performanceProfile = @"performance";
+    vm.diskController = @"VirtIO";
+    vm.networkMode = @"user";
+    vm.notes = AMLocalizedStringF(@"browserImport.notes", filename);
+
+    NSString *vmPath = [self.vmDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.vmstart", vm.vmIdentifier]];
+    vm.vmBundlePath = vmPath;
+    [[NSFileManager defaultManager] createDirectoryAtPath:vmPath withIntermediateDirectories:YES attributes:nil error:nil];
+    BOOL opticalImage = [@[@"iso", @"img"] containsObject:path.pathExtension.lowercaseString];
+    if (opticalImage) {
+        vm.bootISOPath = path;
+        vm.diskImagePath = [vmPath stringByAppendingPathComponent:@"disk.qcow2"];
+        NSString *qemuImg = [[NSFileManager defaultManager] isExecutableFileAtPath:@"/opt/homebrew/bin/qemu-img"] ? @"/opt/homebrew/bin/qemu-img" : @"/usr/local/bin/qemu-img";
+        if ([[NSFileManager defaultManager] isExecutableFileAtPath:qemuImg]) {
+            NSTask *task = [[NSTask alloc] init];
+            task.executableURL = [NSURL fileURLWithPath:qemuImg];
+            task.arguments = @[@"create", @"-f", @"qcow2", vm.diskImagePath, [NSString stringWithFormat:@"%ldG", (long)vm.diskSizeValue]];
+            [task launchAndReturnError:nil];
+            [task waitUntilExit];
+        }
+    } else {
+        vm.diskImagePath = path;
+        vm.diskSizeUnit = @"none";
+    }
+
+    [vm saveToBundle];
+    [self.virtualMachines addObject:vm];
+    [self sortVMs];
+    self.filteredVMs = nil;
+    [self.tableView reloadData];
+    NSInteger row = [[self visibleVMs] indexOfObject:vm];
+    if (row != NSNotFound) [self.tableView selectRowIndexes:[NSIndexSet indexSetWithIndex:row] byExtendingSelection:NO];
+    [self updateContentVisibility];
+    [self updateStatusBar];
+    [self.window makeKeyAndOrderFront:nil];
+    [NSApp activateIgnoringOtherApps:YES];
+}
+
 #pragma mark - VM List
 
 - (void)refreshVMList {
@@ -1451,6 +1523,30 @@
 }
 
 // VM control helpers
+- (nullable VMStartVirtualMachine *)vmMatching:(NSString *)key {
+    if (key.length == 0) return nil;
+    for (VMStartVirtualMachine *vm in self.virtualMachines) {
+        if ([vm.vmIdentifier isEqualToString:key] || [vm.name caseInsensitiveCompare:key] == NSOrderedSame) return vm;
+    }
+    for (VMStartVirtualMachine *vm in self.virtualMachines) {
+        if ([vm.name.lowercaseString hasPrefix:key.lowercaseString]) return vm;
+    }
+    return nil;
+}
+
+- (void)selectVMWithID:(NSString *)vmID {
+    NSArray *vms = [self visibleVMs];
+    for (NSUInteger i = 0; i < vms.count; i++) {
+        if ([[vms[i] vmIdentifier] isEqualToString:vmID]) {
+            [self.tableView selectRowIndexes:[NSIndexSet indexSetWithIndex:i] byExtendingSelection:NO];
+            [self.tableView scrollRowToVisible:i];
+            break;
+        }
+    }
+    [self.window makeKeyAndOrderFront:nil];
+    [NSApp activateIgnoringOtherApps:YES];
+}
+
 - (void)startVMByID:(NSString *)vmID {
     for (VMStartVirtualMachine *vm in self.virtualMachines) {
         if ([vm.vmIdentifier isEqualToString:vmID]) {

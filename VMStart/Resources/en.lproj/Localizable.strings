@@ -553,3 +553,15 @@
 "config.summary.memory" = "Memory: %ld %@";
 "config.summary.usb" = "USB: %@";
 "config.summary.engine" = "Engine: %@";
+
+/* Browser image import */
+"browserImport.invalid.title" = "Unable to Add Image";
+"browserImport.invalid.message" = "The image does not exist or its format is not supported.";
+"browserImport.notes" = "Created with the best configuration by VMStart Image Downloader. Installation image: %@";
+"cli.vmNotFound.title" = "Virtual Machine Not Found";
+"cli.vmNotFound.message" = "There is no virtual machine named \"%@\".";
+"menu.installCLI" = "Install Command Line Tool…";
+"cli.install.done.title" = "Command Line Tool Installed";
+"cli.install.done.message" = "Installed to %@. Run vmstart help in Terminal to see all commands.";
+"cli.install.failed.title" = "Unable to Install Command Line Tool";
+"cli.install.failed.message" = "Neither /opt/homebrew/bin nor /usr/local/bin is writable. Run this in Terminal:\nsudo ln -sf \"%@\" /usr/local/bin/vmstart";

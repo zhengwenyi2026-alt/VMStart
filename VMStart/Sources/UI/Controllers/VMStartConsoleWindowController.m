@@ -368,18 +368,32 @@ static const NSInteger kSerialPort = 4321;
     self.statusBar.stringValue = AMLocalizedString(@"status.starting");
     self.startStopButton.title = AMLocalizedString(@"console.stop");
 
-    // Configure VNC display for embedded viewer
+    // 内嵌 VNC 显示与终端串口只用于本次启动，启动后恢复原配置，避免写入 vm.json 后越积越多
+    NSString *serialArg = [NSString stringWithFormat:@"telnet:127.0.0.1:%ld,server,nowait", (long)kSerialPort];
+    NSMutableArray *savedArgs = [NSMutableArray array];
+    NSArray *oldArgs = self.virtualMachine.additionalArgs ?: @[];
+    for (NSUInteger i = 0; i < oldArgs.count; i++) {
+        if ([oldArgs[i] isEqualToString:@"-serial"] && i + 1 < oldArgs.count && [oldArgs[i + 1] isEqualToString:serialArg]) {
+            i++;
+            continue;
+        }
+        [savedArgs addObject:oldArgs[i]];
+    }
+    NSString *savedDisplay = self.virtualMachine.displayType;
+    if ([savedDisplay isEqualToString:@"none"]) savedDisplay = @"cocoa";
+    NSInteger savedVNC = self.virtualMachine.vncPort;
+
     self.virtualMachine.displayType = @"none";
     self.virtualMachine.vncPort = kVNCPort;
-
-    // Add serial port via telnet for terminal tab
-    NSMutableArray *extraArgs = [NSMutableArray arrayWithArray:self.virtualMachine.additionalArgs ?: @[]];
-    [extraArgs addObject:@"-serial"];
-    [extraArgs addObject:[NSString stringWithFormat:@"telnet:127.0.0.1:%ld,server,nowait", (long)kSerialPort]];
-    self.virtualMachine.additionalArgs = extraArgs;
+    self.virtualMachine.additionalArgs = [savedArgs arrayByAddingObjectsFromArray:@[@"-serial", serialArg]];
 
     NSError *error = nil;
-    if (![self.engine startWithError:&error]) {
+    BOOL started = [self.engine startWithError:&error];
+    self.virtualMachine.displayType = savedDisplay;
+    self.virtualMachine.vncPort = savedVNC;
+    self.virtualMachine.additionalArgs = savedArgs;
+    [self.virtualMachine saveToBundle];
+    if (!started) {
         [self hideSplash];
         [self appendLog:[NSString stringWithFormat:@"[ERROR] %@\n", error.localizedDescription]];
         self.statusBar.stringValue = AMLocalizedString(@"status.error");

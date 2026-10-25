@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'">
+<link rel="stylesheet" href="style.css">
+<title>VMStart 镜像工具</title>
+</head>
+<body>
+<header class="toolbar">
+  <div class="nav">
+    <button id="back" class="icon-btn" disabled><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button id="forward" class="icon-btn" disabled><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+    <button id="reload" class="icon-btn"><svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4"/></svg></button>
+    <button id="home" class="icon-btn"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7M6 10v9h12v-9"/></svg></button>
+  </div>
+  <form id="address-form" class="address">
+    <input id="address" spellcheck="false" autocomplete="off">
+  </form>
+  <button id="dl-btn" class="icon-btn dl-btn">
+    <svg class="ring" viewBox="0 0 36 36"><circle class="ring-bg" cx="18" cy="18" r="15"/><circle id="ring" class="ring-fg" cx="18" cy="18" r="15"/></svg>
+    <svg class="arrow" viewBox="0 0 24 24"><path d="M12 5v11M7 11l5 5 5-5M6 19h12"/></svg>
+  </button>
+</header>
+<div id="loadbar" class="loadbar"></div>
+<main class="content">
+  <webview id="view" partition="persist:vmstart" allowpopups></webview>
+</main>
+
+<section id="panel" class="panel hidden">
+  <div class="panel-head">
+    <span id="panel-title"></span>
+    <button id="clear" class="link-btn"></button>
+  </div>
+  <label class="auto-add">
+    <input id="auto-add" type="checkbox">
+    <img src="../assets/add_to_vmstart.png" alt="">
+    <span id="auto-add-label"></span>
+  </label>
+  <div id="list" class="list"></div>
+  <div id="empty" class="empty"></div>
+</section>
+
+<template id="item-tpl">
+  <div class="item">
+    <div class="row">
+      <div class="file-icon"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z M14 3v4h4"/></svg></div>
+      <div class="meta">
+        <div class="name"></div>
+        <div class="status"></div>
+      </div>
+      <div class="actions">
+        <button class="act add" data-act="add"><img src="../assets/add_to_vmstart.png" alt=""></button>
+        <button class="act pause" data-act="pause"><svg viewBox="0 0 24 24"><path class="p-pause" d="M9 6v12M15 6v12"/><path class="p-play" d="M8 5l11 7-11 7z"/></svg></button>
+        <button class="act reveal" data-act="reveal"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg></button>
+        <button class="act cancel" data-act="cancel"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg></button>
+      </div>
+    </div>
+    <div class="bar"><div class="fill"></div></div>
+  </div>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>

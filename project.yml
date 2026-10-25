@@ -46,6 +46,9 @@ targets:
       - path: VMStart/Resources/BuiltInBrowsers
         buildPhase: resources
         type: folder
+      - path: VMStart/Resources/CLI
+        buildPhase: resources
+        type: folder
     settings:
       base:
         INFOPLIST_FILE: VMStart/Resources/Info.plist
@@ -54,5 +57,11 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.vmstart.app
     info:
       path: VMStart/Resources/Info.plist
+      properties:
+        CFBundleShortVersionString: "1.0"
+        CFBundleURLTypes:
+          - CFBundleURLName: com.vmstart.command
+            CFBundleURLSchemes:
+              - vmstart
     entitlements:
       path: VMStart/Resources/VMStart.entitlements

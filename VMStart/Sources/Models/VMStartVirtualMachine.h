@@ -184,6 +184,9 @@ typedef NS_ENUM(NSInteger, VMStartArchitecture) {
 - (NSImage *)osIcon;
 + (NSArray<NSString *> *)allOSTypeNames;
 + (NSDictionary *)presetConfigForOSType:(VMStartOSType)osType;
++ (VMStartOSType)osTypeForImageFilename:(NSString *)filename;
++ (VMStartArchitecture)architectureForImageFilename:(NSString *)filename;
++ (NSDictionary *)bestConfigForOSType:(VMStartOSType)osType architecture:(VMStartArchitecture)architecture;
 + (NSString *)displayNameForArchitecture:(VMStartArchitecture)arch;
 + (NSString *)qemuBinaryNameForArchitecture:(VMStartArchitecture)arch;
 

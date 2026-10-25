@@ -1,0 +1,9 @@
+{
+  "name": "vmstart-image-tool",
+  "productName": "VMStart 镜像工具",
+  "version": "1.0.0",
+  "description": "VMStart 系统镜像下载与虚拟机创建工具",
+  "main": "main.js",
+  "author": "zhengwenyi2026-alt",
+  "license": "GPL-2.0-only"
+}

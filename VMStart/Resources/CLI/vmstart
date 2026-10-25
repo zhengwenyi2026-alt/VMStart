@@ -1,0 +1,250 @@
+#!/bin/bash
+# VMStart 命令行：在终端直接操控 VMStart 与 VMStart 镜像工具
+# Copyright (c) 2024 zhengwenyi2026-alt. Licensed under GPLv2.
+
+# 部分终端环境会带上该变量，导致 Electron 应用以 Node 模式启动后立即退出
+unset ELECTRON_RUN_AS_NODE
+
+VM_DIR="$HOME/Library/Application Support/VMStart/VirtualMachines"
+TOOL_STATE="$HOME/Library/Application Support/VMStart Image Tool/state.json"
+VMSTART_ID="com.vmstart.app"
+TOOL_ID="com.vmstart.image-tool"
+
+if defaults read -g AppleLanguages 2>/dev/null | sed -n '2p' | grep -qi 'zh'; then ZH=1; else ZH=0; fi
+t() { if [ "$ZH" = 1 ]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }
+die() { echo "vmstart: $*" >&2; exit 1; }
+
+urlencode() {
+  osascript -l JavaScript -e 'function run(a){return encodeURIComponent(a[0])}' "$1"
+}
+
+abspath() {
+  local p="$1"
+  [ -e "$p" ] || return 1
+  (cd "$(dirname "$p")" && printf '%s/%s' "$(pwd -P)" "$(basename "$p")")
+}
+
+app_installed() { [ -n "$(mdfind "kMDItemCFBundleIdentifier == '$1'" 2>/dev/null | head -1)" ] || [ -d "/Applications/$2.app" ]; }
+
+# 向 VMStart 发送 vmstart:// 命令
+vmstart_url() { open "vmstart://$1" || die "$(t '无法打开 VMStart，请确认已安装到“应用程序”文件夹' 'Cannot open VMStart. Install it into /Applications first.')"; }
+
+# 把命令转交给镜像工具：已运行时由单实例机制接收，未运行时直接启动
+tool() {
+  open -n -b "$TOOL_ID" --args "$@" 2>/dev/null \
+    || open -n -a "VMStart 镜像工具" --args "$@" 2>/dev/null \
+    || die "$(t '未找到 VMStart 镜像工具' 'VMStart Image Tool not found')"
+}
+
+usage() {
+  if [ "$ZH" = 1 ]; then cat <<'EOF'
+用法：vmstart <命令> [参数]
+
+虚拟机
+  list                      列出所有虚拟机
+  info <名称>               显示虚拟机配置
+  show [名称]               打开 VMStart 并选中虚拟机
+  start <名称>              启动虚拟机（打开控制台窗口）
+  stop <名称>               停止虚拟机
+  add <镜像文件>            按最佳配置把本地镜像添加到 VMStart
+
+镜像工具
+  open <网址>               在镜像工具中打开网页
+  download <网址> [--add]   下载镜像；--add 表示完成后按最佳配置添加到 VMStart
+  downloads [--json]        在终端查看下载列表
+  panel [hide]              显示或隐藏下载面板
+  watch                     在终端实时显示下载进度，直到全部完成
+  pause|resume|cancel [序号|关键字]
+                            暂停、继续或取消下载（默认当前下载）
+  auto-add on|off           镜像下载完成后是否自动添加
+  home|back|forward|reload  浏览控制
+  quit-tool                 退出镜像工具
+
+名称可以是虚拟机名称、名称前缀或 ID。
+EOF
+  else cat <<'EOF'
+Usage: vmstart <command> [args]
+
+Virtual machines
+  list                      List virtual machines
+  info <name>               Show VM configuration
+  show [name]               Open VMStart and select the VM
+  start <name>              Start a VM (opens its console)
+  stop <name>               Stop a VM
+  add <image>               Add a local image to VMStart with the best configuration
+
+Image tool
+  open <url>                Open a web page in the image tool
+  download <url> [--add]    Download an image; --add adds it to VMStart when finished
+  downloads [--json]        Print the download list
+  panel [hide]              Show or hide the download panel
+  watch                     Live download progress in the terminal until finished
+  pause|resume|cancel [index|keyword]
+                            Pause, resume or cancel a download (default: current)
+  auto-add on|off           Add finished images automatically
+  home|back|forward|reload  Navigation
+  quit-tool                 Quit the image tool
+
+A name can be the VM name, a name prefix or its ID.
+EOF
+  fi
+}
+
+# 用 JXA 解析 JSON，系统自带，无需额外依赖
+list_vms() {
+  osascript -l JavaScript - "$VM_DIR" "$ZH" <<'EOF' 2>/dev/null
+ObjC.import('Foundation');
+function run(argv) {
+  const dir = argv[0], zh = argv[1] === '1';
+  const fm = $.NSFileManager.defaultManager;
+  const items = ObjC.deepUnwrap(fm.contentsOfDirectoryAtPathError(dir, null)) || [];
+  const os = ['Other','Windows XP','Windows 7','Windows 8','Windows 10','Windows 11','Windows Server','Ubuntu','Debian','Fedora','CentOS','Arch Linux','Linux','FreeBSD','OpenBSD','Mac OS X','Classic Mac','Android','DOS','ReactOS','Solaris','Haiku','Commodore','MSX'];
+  const arch = ['x86','x86_64','ARM','AArch64','MIPS','MIPS64','MIPSEL','MIPS64EL','PPC','PPC64','RISC-V 32','RISC-V 64','s390x','SPARC','SPARC64','m68k','Alpha'];
+  const rows = [];
+  for (const it of items.filter((i) => i.endsWith('.vmstart')).sort()) {
+    const s = $.NSString.stringWithContentsOfFileEncodingError(`${dir}/${it}/vm.json`, $.NSUTF8StringEncoding, null);
+    if (!s || s.isNil()) continue;
+    try {
+      const c = JSON.parse(s.js);
+      const mem = `${c.memoryValue} ${c.memoryUnit || 'MB'}`;
+      const disk = c.diskSizeUnit === 'none' ? (zh ? '现有磁盘' : 'existing') : `${c.diskSizeValue} ${c.diskSizeUnit || 'GB'}`;
+      rows.push([c.name, os[c.osType] || '?', arch[c.architecture] || '?', String(c.cpuCores), mem, disk, c.identifier]);
+    } catch (e) {}
+  }
+  if (!rows.length) return zh ? '还没有虚拟机。' : 'No virtual machines.';
+  const head = zh ? ['名称','系统','架构','核心','内存','磁盘','ID'] : ['NAME','OS','ARCH','CPU','MEMORY','DISK','ID'];
+  const all = [head, ...rows];
+  const w = head.map((_, i) => Math.max(...all.map((r) => [...r[i]].reduce((n, ch) => n + (ch.charCodeAt(0) > 0x2e80 ? 2 : 1), 0))));
+  const pad = (v, n) => v + ' '.repeat(n - [...v].reduce((m, ch) => m + (ch.charCodeAt(0) > 0x2e80 ? 2 : 1), 0));
+  return all.map((r) => r.map((v, i) => i === r.length - 1 ? v : pad(v, w[i])).join('  ')).join('\n');
+}
+EOF
+}
+
+find_vm_dir() {
+  osascript -l JavaScript - "$VM_DIR" "$1" <<'EOF' 2>/dev/null
+ObjC.import('Foundation');
+function run(argv) {
+  const [dir, key] = argv;
+  const items = ObjC.deepUnwrap($.NSFileManager.defaultManager.contentsOfDirectoryAtPathError(dir, null)) || [];
+  const vms = [];
+  for (const it of items.filter((i) => i.endsWith('.vmstart'))) {
+    const s = $.NSString.stringWithContentsOfFileEncodingError(`${dir}/${it}/vm.json`, $.NSUTF8StringEncoding, null);
+    if (!s || s.isNil()) continue;
+    try { const c = JSON.parse(s.js); vms.push({ path: `${dir}/${it}`, name: c.name || '', id: c.identifier || '' }); } catch (e) {}
+  }
+  const k = key.toLowerCase();
+  const hit = vms.find((v) => v.id === key || v.name.toLowerCase() === k) || vms.find((v) => v.name.toLowerCase().startsWith(k));
+  return hit ? hit.path : '';
+}
+EOF
+}
+
+tool_running() {
+  [ -f "$TOOL_STATE" ] || return 1
+  local pid; pid="$(plutil -extract pid raw "$TOOL_STATE" 2>/dev/null)"
+  [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+print_downloads() {
+  tool_running || { t '镜像工具未运行。' 'The image tool is not running.'; echo; return 1; }
+  if [ "$1" = "--json" ]; then cat "$TOOL_STATE"; echo; return 0; fi
+  osascript -l JavaScript - "$TOOL_STATE" "$ZH" "${2:-0}" <<'EOF' 2>/dev/null
+ObjC.import('Foundation');
+function run(argv) {
+  const zh = argv[1] === '1', bar = argv[2] === '1';
+  const s = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null);
+  if (!s || s.isNil()) return '';
+  const st = JSON.parse(s.js);
+  const fmt = (b) => { if (!b) return '0 B'; const u = ['B','KB','MB','GB','TB']; const i = Math.min(Math.floor(Math.log(b) / Math.log(1024)), 4); return (b / 1024 ** i).toFixed(i >= 3 ? 1 : 0) + ' ' + u[i]; };
+  const eta = (sec) => { if (!isFinite(sec) || sec <= 0) return ''; if (sec < 60) return zh ? `还剩 ${Math.ceil(sec)} 秒` : `${Math.ceil(sec)}s left`; if (sec < 3600) return zh ? `还剩 ${Math.ceil(sec / 60)} 分钟` : `${Math.ceil(sec / 60)} min left`; return zh ? `还剩 ${(sec / 3600).toFixed(1)} 小时` : `${(sec / 3600).toFixed(1)}h left`; };
+  const lines = [];
+  lines.push((zh ? '自动添加：' : 'Auto add: ') + (st.autoAdd ? (zh ? '开' : 'on') : (zh ? '关' : 'off')));
+  if (!st.downloads.length) lines.push(zh ? '暂无下载内容' : 'No downloads yet');
+  st.downloads.forEach((d, i) => {
+    let status;
+    if (d.state === 'progressing') {
+      const pct = d.total ? Math.floor(d.received / d.total * 100) : 0;
+      const parts = [`↓ ${fmt(d.received)}/${fmt(d.total)}`, `${pct}%`];
+      if (d.paused) parts.push(zh ? '已暂停' : 'paused'); else if (d.speed > 0) parts.push(`${fmt(d.speed)}/s`, eta((d.total - d.received) / d.speed));
+      if (d.queuedAdd) parts.push(zh ? '完成后自动添加' : 'adds when finished');
+      status = parts.filter(Boolean).join(' • ');
+      if (bar) { const n = 30, f = Math.round(pct / 100 * n); status = `[${'█'.repeat(f)}${'░'.repeat(n - f)}] ` + status; }
+    } else if (d.state === 'completed') {
+      status = `${fmt(d.total)} • ` + (d.added ? (zh ? '已添加到 VMStart' : 'added to VMStart') : (zh ? '已完成' : 'done'));
+    } else status = d.state === 'cancelled' ? (zh ? '已取消' : 'cancelled') : (zh ? '下载失败' : 'failed');
+    lines.push(`${i + 1}. ${d.filename}\n   ${status}`);
+  });
+  const running = st.downloads.filter((d) => d.state === 'progressing').length;
+  return lines.join('\n') + `\n#RUNNING=${running}`;
+}
+EOF
+}
+
+cmd="$1"; shift 2>/dev/null
+case "$cmd" in
+  ""|-h|--help|help) usage ;;
+  list|ls)
+    list_vms ;;
+  info)
+    [ -n "$1" ] || die "$(t '请指定虚拟机名称' 'VM name required')"
+    dir="$(find_vm_dir "$1")"
+    [ -n "$dir" ] || die "$(t "未找到虚拟机：$1" "VM not found: $1")"
+    cat "$dir/vm.json"; echo ;;
+  show)
+    if [ -n "$1" ]; then vmstart_url "show?name=$(urlencode "$1")"; else open -b "$VMSTART_ID"; fi ;;
+  start|stop)
+    [ -n "$1" ] || die "$(t '请指定虚拟机名称' 'VM name required')"
+    [ -n "$(find_vm_dir "$1")" ] || die "$(t "未找到虚拟机：$1" "VM not found: $1")"
+    vmstart_url "$cmd?name=$(urlencode "$1")"
+    if [ "$cmd" = start ]; then t "已发送启动命令：$1" "Sent start: $1"; else t "已发送停止命令：$1" "Sent stop: $1"; fi; echo ;;
+  add)
+    [ -n "$1" ] || die "$(t '请指定镜像文件' 'Image file required')"
+    file="$(abspath "$1")" || die "$(t "文件不存在：$1" "File not found: $1")"
+    case "$(echo "${file##*.}" | tr '[:upper:]' '[:lower:]')" in
+      iso|img|qcow2|vmdk|vdi|vhd|vhdx) ;;
+      *) die "$(t '不支持的镜像格式' 'Unsupported image format')" ;;
+    esac
+    vmstart_url "add?path=$(urlencode "$file")"
+    t "已按最佳配置添加：$(basename "$file")" "Added with the best configuration: $(basename "$file")"; echo ;;
+  open|browse)
+    [ -n "$1" ] || die "$(t '请指定网址' 'URL required')"
+    tool open "$1" ;;
+  download|dl)
+    url=""; add=""
+    for a in "$@"; do case "$a" in --add) add="--add" ;; *) url="$a" ;; esac; done
+    [ -n "$url" ] || die "$(t '请指定下载地址' 'URL required')"
+    tool download "$url" $add
+    t "已开始下载：$url" "Download started: $url"; echo ;;
+  downloads)
+    out="$(print_downloads "$1")" || exit 1
+    echo "$out" | grep -v '^#RUNNING=' ;;
+  watch)
+    tool_running || die "$(t '镜像工具未运行' 'The image tool is not running')"
+    trap 'tput cnorm 2>/dev/null; echo; exit 0' INT TERM
+    tput civis 2>/dev/null
+    prev=0
+    while :; do
+      out="$(print_downloads "" 1)" || break
+      running="$(echo "$out" | sed -n 's/^#RUNNING=//p')"
+      body="$(echo "$out" | grep -v '^#RUNNING=')"
+      [ "$prev" -gt 0 ] && printf '\033[%dA' "$prev"
+      echo "$body" | while IFS= read -r l; do printf '\033[2K%s\n' "$l"; done
+      prev="$(echo "$body" | wc -l | tr -d ' ')"
+      [ "${running:-0}" = 0 ] && break
+      sleep 0.5
+    done
+    tput cnorm 2>/dev/null ;;
+  panel)
+    if [ "$1" = hide ]; then tool downloads hide; else tool downloads; fi ;;
+  pause|resume|cancel)
+    tool "$cmd" "$@" ;;
+  auto-add)
+    case "$1" in on|off) tool auto-add "$1" ;; *) die "auto-add on|off" ;; esac ;;
+  home|back|forward|reload)
+    tool "$cmd" ;;
+  quit-tool)
+    tool_running && tool quit ;;
+  *)
+    usage >&2; exit 1 ;;
+esac
