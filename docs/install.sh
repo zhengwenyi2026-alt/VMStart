@@ -16,23 +16,21 @@ major="$(sw_vers -productVersion | cut -d. -f1)"
 
 # Rosetta 下运行的终端 uname 会报 x86_64，以硬件为准
 if [ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = 1 ]; then arch=arm64; else arch=x86_64; fi
-dmg="VMStart-$VERSION-$arch.dmg"
+pkg="VMStart-$VERSION-macOS-$arch.zip"
 
 tmp="$(mktemp -d)"
-mnt="$tmp/mnt"
-cleanup() { hdiutil detach "$mnt" -quiet 2>/dev/null || true; rm -rf "$tmp"; }
+cleanup() { rm -rf "$tmp"; }
 trap cleanup EXIT
 
-say "下载 $dmg"
-curl -fL --progress-bar "$BASE/$dmg" -o "$tmp/$dmg" || die "下载失败，请检查网络"
+say "下载 $pkg"
+curl -fL --progress-bar "$BASE/$pkg" -o "$tmp/$pkg" || die "下载失败，请检查网络"
 
 say "安装到“应用程序”"
-mkdir -p "$mnt"
-hdiutil attach "$tmp/$dmg" -nobrowse -readonly -quiet -mountpoint "$mnt" || die "无法打开安装包"
+ditto -x -k "$tmp/$pkg" "$tmp" || die "无法解压安装包"
 osascript -e 'quit app "VMStart"' 2>/dev/null || true
 sudo_if() { if [ -w /Applications ]; then "$@"; else sudo "$@"; fi; }
 sudo_if rm -rf "$APP"
-sudo_if cp -R "$mnt/VMStart.app" "$APP"
+sudo_if ditto "$tmp/VMStart.app" "$APP"
 sudo_if xattr -cr "$APP"
 
 # 命令行工具：优先放到已在 PATH 中且可写的目录

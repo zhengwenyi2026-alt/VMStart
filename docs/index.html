@@ -206,8 +206,8 @@
                         <span class="platform-name" data-zh="macOS" data-en="macOS">macOS</span>
                     </div>
                     <div class="download-arch">Apple Silicon (arm64)</div>
-                    <div class="download-size">~0.7 MB</div>
-                    <a href="VMStart-1.0.0-arm64.dmg" download class="btn btn-primary btn-block" data-zh="下载 DMG" data-en="Download DMG">下载 DMG</a>
+                    <div class="download-size">~0.5 MB</div>
+                    <a href="VMStart-1.0.0-macOS-arm64.zip" download class="btn btn-primary btn-block" data-zh="下载 ZIP" data-en="Download ZIP">下载 ZIP</a>
                     <div class="download-req" data-zh="macOS 14.0+" data-en="macOS 14.0+">macOS 14.0+</div>
                 </div>
                 <div class="download-card">
@@ -216,8 +216,8 @@
                         <span class="platform-name" data-zh="macOS" data-en="macOS">macOS</span>
                     </div>
                     <div class="download-arch">Intel (x86_64)</div>
-                    <div class="download-size">~0.8 MB</div>
-                    <a href="VMStart-1.0.0-x86_64.dmg" download class="btn btn-outline btn-block" data-zh="下载 DMG" data-en="Download DMG">下载 DMG</a>
+                    <div class="download-size">~0.6 MB</div>
+                    <a href="VMStart-1.0.0-macOS-x86_64.zip" download class="btn btn-outline btn-block" data-zh="下载 ZIP" data-en="Download ZIP">下载 ZIP</a>
                     <div class="download-req" data-zh="macOS 14.0+" data-en="macOS 14.0+">macOS 14.0+</div>
                 </div>
                 <div class="download-card">
@@ -242,12 +242,12 @@
                 </div>
             </div>
             <div class="install-box">
-                <div class="install-title" data-zh="下载 DMG 后提示“无法验证”或“已损坏”？" data-en="DMG says “cannot be verified” or “damaged”?">下载 DMG 后提示“无法验证”或“已损坏”？</div>
+                <div class="install-title" data-zh="下载 ZIP 后打开提示“无法验证”或“已损坏”？" data-en="App says “cannot be verified” or “damaged”?">下载 ZIP 后打开提示“无法验证”或“已损坏”？</div>
                 <div class="install-cmd">
                     <code id="unquarantine-cmd">sudo xattr -cr /Applications/VMStart.app</code>
                     <button class="btn btn-primary install-copy" onclick="copyCmd('unquarantine-cmd', this)" data-zh="复制" data-en="Copy">复制</button>
                 </div>
-                <div class="install-hint" data-zh="先把 VMStart.app 拖入“应用程序”，再打开“终端”粘贴这行命令并回车，输入开机密码（输入时不显示）。之后双击即可打开。" data-en="Drag VMStart.app into Applications first, then paste this into Terminal, press Return and enter your login password (it won't be shown). VMStart will then open normally.">先把 VMStart.app 拖入“应用程序”，再打开“终端”粘贴这行命令并回车，输入开机密码（输入时不显示）。之后双击即可打开。</div>
+                <div class="install-hint" data-zh="先解压，把 VMStart.app 拖入“应用程序”，再打开“终端”粘贴这行命令并回车，输入开机密码（输入时不显示）。之后双击即可打开。" data-en="Unzip and drag VMStart.app into Applications first, then paste this into Terminal, press Return and enter your login password (it won't be shown). VMStart will then open normally.">先解压，把 VMStart.app 拖入“应用程序”，再打开“终端”粘贴这行命令并回车，输入开机密码（输入时不显示）。之后双击即可打开。</div>
             </div>
             <div class="download-note">
                 <p data-zh="所有版本均为自包含构建，无需额外安装运行时。" data-en="All versions are self-contained builds, no additional runtime required.">所有版本均为自包含构建，无需额外安装运行时。</p>
@@ -265,7 +265,7 @@
                     <ol>
                         <li data-zh="打开“终端”，执行上方的一行安装命令" data-en="Open Terminal and run the one-line install command above">打开“终端”，执行上方的一行安装命令</li>
                         <li data-zh="安装完成后 VMStart 会自动打开，无需任何安全设置" data-en="VMStart opens automatically after install, no security settings needed">安装完成后 VMStart 会自动打开，无需任何安全设置</li>
-                        <li data-zh="也可下载 DMG 手动安装，拖入“应用程序”后在终端执行下载区下方的解除命令" data-en="Or install from the DMG: drag into Applications, then run the unblock command below the downloads in Terminal">也可下载 DMG 手动安装，拖入“应用程序”后在终端执行下载区下方的解除命令</li>
+                        <li data-zh="也可下载 ZIP 手动安装：解压后把 VMStart.app 拖入“应用程序”，再在终端执行下载区下方的解除命令" data-en="Or install from the ZIP: unzip, drag VMStart.app into Applications, then run the unblock command below the downloads in Terminal">也可下载 ZIP 手动安装：解压后把 VMStart.app 拖入“应用程序”，再在终端执行下载区下方的解除命令</li>
                         <li data-zh="启动 VMStart，开始创建虚拟机" data-en="Launch VMStart and start creating VMs">启动 VMStart，开始创建虚拟机</li>
                     </ol>
                 </div>
