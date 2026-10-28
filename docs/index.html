@@ -250,10 +250,10 @@
             <div class="install-box">
                 <div class="install-title" data-zh="下载 ZIP 后打开提示“无法验证”或“已损坏”？" data-en="App says “cannot be verified” or “damaged”?">下载 ZIP 后打开提示“无法验证”或“已损坏”？</div>
                 <div class="install-cmd">
-                    <code id="unquarantine-cmd">sudo xattr -cr /Applications/VMStart.app</code>
+                    <code id="unquarantine-cmd">sudo xattr -r -d com.apple.quarantine /Applications/VMStart.app</code>
                     <button class="btn btn-primary install-copy" onclick="copyCmd('unquarantine-cmd', this)" data-zh="复制" data-en="Copy">复制</button>
                 </div>
-                <div class="install-hint" data-zh="先解压，把 VMStart.app 拖入“应用程序”，再打开“终端”粘贴这行命令并回车，输入开机密码（输入时不显示）。之后双击即可打开。" data-en="Unzip and drag VMStart.app into Applications first, then paste this into Terminal, press Return and enter your login password (it won't be shown). VMStart will then open normally.">先解压，把 VMStart.app 拖入“应用程序”，再打开“终端”粘贴这行命令并回车，输入开机密码（输入时不显示）。之后双击即可打开。</div>
+                <div class="install-hint" data-zh="务必先把解压出的 VMStart.app 拖入“应用程序”文件夹，再打开“终端”粘贴这行命令并回车，输入开机密码（输入时不显示）。路径必须和 App 实际所在位置一致——直接双击“下载”文件夹里的副本仍会被拦；这时可把命令末尾的路径删掉，改为把 VMStart.app 拖进终端窗口自动填入。" data-en="Drag the unzipped VMStart.app into Applications first, then paste this into Terminal, press Return and enter your login password (it won't be shown). The path must match where the app actually is — opening the copy left in Downloads is still blocked. In that case delete the path at the end of the command and drag VMStart.app into the Terminal window to fill it in.">务必先把解压出的 VMStart.app 拖入“应用程序”文件夹，再打开“终端”粘贴这行命令并回车，输入开机密码（输入时不显示）。路径必须和 App 实际所在位置一致——直接双击“下载”文件夹里的副本仍会被拦；这时可把命令末尾的路径删掉，改为把 VMStart.app 拖进终端窗口自动填入。</div>
             </div>
             <div class="download-note">
                 <p data-zh="所有版本均为自包含构建，无需额外安装运行时。" data-en="All versions are self-contained builds, no additional runtime required.">所有版本均为自包含构建，无需额外安装运行时。</p>

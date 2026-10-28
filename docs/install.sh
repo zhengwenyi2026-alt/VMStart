@@ -31,7 +31,7 @@ osascript -e 'quit app "VMStart"' 2>/dev/null || true
 sudo_if() { if [ -w /Applications ]; then "$@"; else sudo "$@"; fi; }
 sudo_if rm -rf "$APP"
 sudo_if ditto "$tmp/VMStart.app" "$APP"
-sudo_if xattr -cr "$APP"
+sudo_if xattr -r -d com.apple.quarantine "$APP" 2>/dev/null || true
 
 # 命令行工具：优先放到已在 PATH 中且可写的目录
 cli="$APP/Contents/Resources/CLI/vmstart"
