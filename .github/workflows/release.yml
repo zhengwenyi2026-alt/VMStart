@@ -85,13 +85,14 @@ jobs:
   # ═══════════════════════════════════════════════════
   build-macos-x86_64:
     name: "macOS DMG (Intel x86_64)"
-    runs-on: macos-13
+    # macos-13 已被 GitHub 下线，任务会一直排队到超时
+    runs-on: macos-15-intel
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.0.app
+        run: sudo xcode-select -s /Applications/Xcode_16.0.app
 
       - name: Install XcodeGen
         run: brew install xcodegen
