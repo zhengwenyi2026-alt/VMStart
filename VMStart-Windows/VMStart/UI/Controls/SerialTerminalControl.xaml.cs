@@ -16,8 +16,7 @@ namespace VMStart.UI.Controls
     {
         private TcpClient _client;
         private NetworkStream _stream;
-        private Thread _worker;
-        private volatile bool _running;
+        private int _generation;
         private readonly List<string> _lines = new();
         private string _currentLine = "";
         private const int MaxLines = 5000;
@@ -30,7 +29,7 @@ namespace VMStart.UI.Controls
         public SerialTerminalControl()
         {
             InitializeComponent();
-            AppendLine("AirVM Serial Terminal");
+            AppendLine("VMStart Serial Terminal");
             AppendLine("Waiting for connection...");
         }
 
@@ -39,68 +38,78 @@ namespace VMStart.UI.Controls
         public void Connect(string host = "127.0.0.1", int port = 4321)
         {
             Disconnect();
-            _running = true;
-            _worker = new Thread(() => Run(host, port))
-            {
-                Name = "SerialClient",
-                IsBackground = true
-            };
-            _worker.Start();
+            int gen = ++_generation;
+            new Thread(() => Run(host, port, gen)) { Name = "SerialClient", IsBackground = true }.Start();
         }
 
         public void Disconnect()
         {
-            _running = false;
+            _generation++;
             IsConnected = false;
-            try { _client?.Close(); } catch { }
-            _client = null;
-            _stream = null;
-            _worker = null;
+            lock (_lock)
+            {
+                try { _client?.Close(); } catch { }
+                _client = null;
+                _stream = null;
+            }
         }
 
-        private void Run(string host, int port)
+        private bool IsCurrent(int gen) => Volatile.Read(ref _generation) == gen;
+
+        private void Post(int gen, Action action)
         {
+            try { Dispatcher.InvokeAsync(() => { if (IsCurrent(gen)) action(); }); }
+            catch { /* 窗口关闭时调度器可能已停止 */ }
+        }
+
+        private void Run(string host, int port, int gen)
+        {
+            var client = new TcpClient();
             try
             {
-                _client = new TcpClient();
-                _client.Connect(host, port);
-                _stream = _client.GetStream();
-
-                IsConnected = true;
-                Dispatcher.Invoke(() =>
+                for (int attempt = 0; ; attempt++)
                 {
+                    try { client.Connect(host, port); break; }
+                    catch (SocketException) when (attempt < 20 && IsCurrent(gen)) { Thread.Sleep(250); }
+                }
+                var stream = client.GetStream();
+                lock (_lock)
+                {
+                    if (!IsCurrent(gen)) return;
+                    _client = client;
+                    _stream = stream;
+                }
+                Post(gen, () =>
+                {
+                    IsConnected = true;
                     AppendLine($"[Connected to serial port {port}]");
                     OnConnected?.Invoke();
                 });
 
-                ReadLoop();
+                var buf = new byte[4096];
+                var decoder = Encoding.UTF8.GetDecoder();
+                var chars = new char[Encoding.UTF8.GetMaxCharCount(buf.Length)];
+                int n;
+                while (IsCurrent(gen) && (n = stream.Read(buf, 0, buf.Length)) > 0)
+                {
+                    // 解码器跨批次保留半个 UTF-8 字符
+                    int c = decoder.GetChars(buf, 0, n, chars, 0);
+                    var text = new string(chars, 0, c);
+                    Post(gen, () => ProcessANSI(text));
+                }
             }
             catch (Exception ex)
             {
-                Dispatcher.Invoke(() => AppendLine($"[Error: {ex.Message}]"));
+                Post(gen, () => AppendLine($"[Error: {ex.Message}]"));
             }
             finally
             {
-                IsConnected = false;
-                Dispatcher.Invoke(() => OnDisconnected?.Invoke());
-            }
-        }
-
-        private void ReadLoop()
-        {
-            var buf = new byte[4096];
-            while (_running)
-            {
-                if (!_stream.DataAvailable)
+                try { client.Close(); } catch { }
+                Post(gen, () =>
                 {
-                    Thread.Sleep(10);
-                    continue;
-                }
-                int n = _stream.Read(buf, 0, buf.Length);
-                if (n <= 0) break;
-
-                var str = Encoding.UTF8.GetString(buf, 0, n);
-                ProcessANSI(str);
+                    IsConnected = false;
+                    OnDisconnected?.Invoke();
+                });
             }
         }
 
@@ -112,27 +121,19 @@ namespace VMStart.UI.Controls
             var cleaned = Regex.Replace(text, @"\x1b\[[0-9;]*[a-zA-Z]", "");
             cleaned = Regex.Replace(cleaned, @"\x1b\([a-zA-Z]", "");
 
-            Dispatcher.Invoke(() =>
+            foreach (char ch in cleaned)
             {
-                foreach (char ch in cleaned)
+                if (ch == '\r') continue;
+                if (ch == '\n')
+                    FlushLine();
+                else if (ch == '\b')
                 {
-                    if (ch == '\r') continue;
-                    if (ch == '\n')
-                    {
-                        FlushLine();
-                    }
-                    else if (ch == '\b')
-                    {
-                        if (_currentLine.Length > 0)
-                            _currentLine = _currentLine[..^1];
-                    }
-                    else
-                    {
-                        _currentLine += ch;
-                    }
+                    if (_currentLine.Length > 0) _currentLine = _currentLine[..^1];
                 }
-                RefreshDisplay();
-            });
+                else
+                    _currentLine += ch;
+            }
+            RefreshDisplay();
         }
 
         private void FlushLine()
@@ -188,10 +189,10 @@ namespace VMStart.UI.Controls
                 return;
             }
 
-            var data = Encoding.UTF8.GetBytes(text + "\r\n");
+            var data = Encoding.UTF8.GetBytes(text + "\r");
             try
             {
-                _stream.Write(data, 0, data.Length);
+                lock (_lock) _stream?.Write(data, 0, data.Length);
             }
             catch
             {
@@ -203,7 +204,7 @@ namespace VMStart.UI.Controls
         {
             if (!IsConnected || _stream == null) return;
             var data = Encoding.UTF8.GetBytes(text);
-            try { _stream.Write(data, 0, data.Length); } catch { }
+            try { lock (_lock) _stream?.Write(data, 0, data.Length); } catch { }
         }
 
         public void ClearScreen()

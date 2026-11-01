@@ -90,8 +90,7 @@
                                 <MenuItem Header="Linked Clone..." Click="CtxLinkedClone_Click"/>
                             </MenuItem>
                             <Separator/>
-                            <MenuItem Header="📤 Export OVF/OVA..." Click="CtxExportOVF_Click"/>
-                            <MenuItem Header="🔒 Encrypt VM" Click="CtxEncrypt_Click"/>
+                            <MenuItem Header="📤 Export OVF..." Click="CtxExportOVF_Click"/>
                             <Separator/>
                             <MenuItem Header="🗑 Delete" Click="RemoveVM_Click"/>
                         </ContextMenu>

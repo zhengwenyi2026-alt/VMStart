@@ -45,9 +45,12 @@ namespace VMStart.UI
         private void PopulateControls()
         {
             // Architectures
+            // 经典 Mac / 6502 / Z80 等由 macOS 端的其他引擎提供，Windows 端只列出有 QEMU 程序的架构
             ArchCombo.ItemsSource = Enum.GetValues<VMArchitecture>()
+                .Where(a => a < VMArchitecture.ClassicMac68k)
                 .Select(a => new { Value = a, Display = a.ToString() }).ToList();
             ArchCombo.DisplayMemberPath = "Display";
+            ArchCombo.SelectedValuePath = "Value";
 
             // Machine Types
             MachineTypeCombo.ItemsSource = new[] { "default", "pc", "q35", "virt", "mac99", "g3beige", "malta", "none" };
@@ -63,16 +66,15 @@ namespace VMStart.UI
             DiskUnitCombo.ItemsSource = new[] { "GB", "TB", "none" };
 
             // Network Modes
-            NetworkModeCombo.ItemsSource = new[]
-            {
-                "NAT (user)", "Bridge", "Host-only", "Virtual Modem (dial-up)", "Terminal", "none"
-            };
+            NetworkModeCombo.DisplayMemberPath = "Display";
+            NetworkModeCombo.SelectedValuePath = "Value";
+            NetworkModeCombo.ItemsSource = AllNetworkOptions;
 
             // Modem Speeds
             ModemSpeedCombo.ItemsSource = new[] { "2400", "9600", "14400", "28800", "56000" };
 
             // Display Backends
-            DisplayCombo.ItemsSource = new[] { "sdl", "gtk", "cocoa", "none", "vnc" };
+            DisplayCombo.ItemsSource = new[] { "sdl", "gtk", "none" };
         }
 
         private void LoadFromVM()
@@ -88,7 +90,8 @@ namespace VMStart.UI
             DiskUnitCombo.SelectedItem = _vm.DiskSizeUnit;
             BootISOBox.Text = _vm.BootISOPath;
             CDROMBox.Text = _vm.CdromImagePath;
-            NetworkModeCombo.SelectedIndex = NetworkModeToIndex(_vm.NetworkMode);
+            NetworkModeCombo.SelectedValue = _vm.NetworkMode ?? "user";
+            if (NetworkModeCombo.SelectedIndex < 0) NetworkModeCombo.SelectedValue = "user";
             DisplayCombo.SelectedItem = _vm.DisplayType;
             AudioCheck.IsChecked = _vm.EnableAudio;
             USBCheck.IsChecked = _vm.EnableUSB;
@@ -102,14 +105,12 @@ namespace VMStart.UI
             UnityCheck.IsChecked = _vm.EnableUnity;
         }
 
-        private int NetworkModeToIndex(string mode) => mode switch
+        private record NetworkOption(string Value, string Display);
+
+        private static readonly List<NetworkOption> AllNetworkOptions = new()
         {
-            "bridge" => 1,
-            "host-only" => 2,
-            "modem" => 3,
-            "terminal" => 4,
-            "none" => 5,
-            _ => 0 // user/NAT
+            new("user", "NAT (user)"), new("bridge", "Bridge (TAP)"), new("host-only", "Host-only"),
+            new("modem", "Virtual Modem (dial-up)"), new("terminal", "Terminal"), new("none", "none")
         };
 
         // ─── Step Navigation ───
@@ -202,17 +203,13 @@ namespace VMStart.UI
         private void UpdateNetworkForMode()
         {
             // Reduce network options for Simple mode
-            if (_mode == AppMode.Simple)
-            {
-                NetworkModeCombo.ItemsSource = new[] { "NAT (user)", "Bridge", "none" };
-            }
-            else
-            {
-                NetworkModeCombo.ItemsSource = new[]
-                {
-                    "NAT (user)", "Bridge", "Host-only", "Virtual Modem (dial-up)", "Terminal", "none"
-                };
-            }
+            // 换选项列表时保留当前选择，不在精简列表里的回落到 NAT
+            var current = NetworkModeCombo.SelectedValue as string ?? "user";
+            NetworkModeCombo.ItemsSource = _mode == AppMode.Simple
+                ? AllNetworkOptions.Where(o => o.Value is "user" or "bridge" or "none").ToList()
+                : AllNetworkOptions;
+            NetworkModeCombo.SelectedValue = current;
+            if (NetworkModeCombo.SelectedIndex < 0) NetworkModeCombo.SelectedValue = "user";
 
             // Show/hide advanced options
             ModemPanel.Visibility = _mode == AppMode.Advanced ? Visibility.Visible : Visibility.Collapsed;
@@ -255,7 +252,7 @@ namespace VMStart.UI
             _vm.DiskSizeUnit = DiskUnitCombo.SelectedItem?.ToString() ?? "GB";
             _vm.BootISOPath = BootISOBox.Text;
             _vm.CdromImagePath = CDROMBox.Text;
-            _vm.NetworkMode = IndexToNetworkMode(NetworkModeCombo.SelectedIndex);
+            _vm.NetworkMode = NetworkModeCombo.SelectedValue as string ?? "user";
             _vm.DisplayType = DisplayCombo.SelectedItem?.ToString() ?? "sdl";
             _vm.EnableAudio = AudioCheck.IsChecked == true;
             _vm.EnableUSB = USBCheck.IsChecked == true;
@@ -270,16 +267,6 @@ namespace VMStart.UI
             _vm.EnableUnity = UnityCheck.IsChecked == true;
         }
 
-        private string IndexToNetworkMode(int index) => index switch
-        {
-            1 => "bridge",
-            2 => "host-only",
-            3 => "modem",
-            4 => "terminal",
-            5 => "none",
-            _ => "user"
-        };
-
         private void BuildSummary()
         {
             var arch = ArchCombo.SelectedValue is VMArchitecture a ? a.ToString() : "?";
@@ -291,7 +278,7 @@ namespace VMStart.UI
                 $"CPU:         {CpuCombo.SelectedItem} ({CoresCombo.SelectedItem} cores)",
                 $"Memory:      {MemoryBox.Text} {MemoryUnitCombo.SelectedItem}",
                 $"Disk:        {DiskSizeBox.Text} {DiskUnitCombo.SelectedItem}",
-                $"Network:     {NetworkModeCombo.SelectedItem}",
+                $"Network:     {(NetworkModeCombo.SelectedItem as NetworkOption)?.Display}",
                 $"Display:     {DisplayCombo.SelectedItem}",
                 $"Audio:       {(AudioCheck.IsChecked == true ? "Yes" : "No")}",
                 $"USB:         {(USBCheck.IsChecked == true ? "Yes" : "No")}",

@@ -29,3 +29,7 @@ dmg/
 
 # Qoder
 .qoder/
+
+# .NET
+[Bb]in/
+[Oo]bj/

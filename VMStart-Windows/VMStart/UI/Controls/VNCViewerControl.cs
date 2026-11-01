@@ -13,24 +13,22 @@ using System.Windows.Threading;
 namespace VMStart.UI.Controls
 {
     /// <summary>
-    /// VNC (RFB 3.8) client WPF control — connects to QEMU VNC server
-    /// and renders the VM framebuffer using WriteableBitmap.
+    /// RFB 3.8 客户端：连接 QEMU 内置 VNC 服务并用 WriteableBitmap 绘制客户机画面。
     /// </summary>
     public class VNCViewerControl : Control, IDisposable
     {
+        private const int EncodingRaw = 0;
+        private const int EncodingDesktopSize = -223;
+
         private WriteableBitmap _bitmap;
         private readonly Image _image;
+        private readonly UIElement _visualChild;
         private TcpClient _client;
         private NetworkStream _stream;
-        private Thread _worker;
-        private volatile bool _running;
+        private readonly object _writeLock = new();
+        // 每次连接自增；旧连接线程据此判断自己已过期，不再改动当前状态
+        private int _generation;
         private int _fbWidth, _fbHeight;
-        private int _bpp = 4;
-        private bool _bigEndian;
-        private uint _rShift, _gShift, _bShift;
-        private uint _rMax, _gMax, _bMax;
-        private byte _mouseMask;
-        private readonly object _lock = new();
 
         public bool IsConnected { get; private set; }
         public int FramebufferWidth => _fbWidth;
@@ -41,66 +39,84 @@ namespace VMStart.UI.Controls
         public VNCViewerControl()
         {
             Background = Brushes.Black;
-            _image = new Image { Stretch = Stretch.Uniform };
             Focusable = true;
-
-            // Use a Grid as the visual tree
+            _image = new Image { Stretch = Stretch.Uniform };
+            RenderOptions.SetBitmapScalingMode(_image, BitmapScalingMode.HighQuality);
             var grid = new Grid { Background = Brushes.Black };
             grid.Children.Add(_image);
-
-            // We need to be a ContentControl or use AddVisualChild
-            // Instead, use a simpler approach: override visual children
             _visualChild = grid;
             AddVisualChild(grid);
             AddLogicalChild(grid);
         }
 
-        private readonly UIElement _visualChild;
         protected override int VisualChildrenCount => 1;
-        protected override Visual GetVisualChild(int index) => (Visual)_visualChild;
+        protected override Visual GetVisualChild(int index) => _visualChild;
 
-        // ─── Connection ───
+        // ─── 连接 ───
 
         public void Connect(string host = "127.0.0.1", int port = 5900)
         {
             Disconnect();
-            _running = true;
-            _worker = new Thread(() => Run(host, port))
-            {
-                Name = "VNCClient",
-                IsBackground = true,
-                Priority = ThreadPriority.Highest
-            };
-            _worker.Start();
+            int gen = ++_generation;
+            new Thread(() => Run(host, port, gen)) { Name = "VNCClient", IsBackground = true }.Start();
         }
 
         public void Disconnect()
         {
-            _running = false;
+            _generation++;
+            bool was = IsConnected;
             IsConnected = false;
-            try { _client?.Close(); } catch { }
-            _client = null;
-            _stream = null;
-            _worker = null;
-            Dispatcher.Invoke(() => OnDisconnected?.Invoke());
+            lock (_writeLock)
+            {
+                try { _client?.Close(); } catch { }
+                _client = null;
+                _stream = null;
+            }
+            if (was) OnDisconnected?.Invoke();
         }
 
-        private void Run(string host, int port)
+        private bool IsCurrent(int gen) => Volatile.Read(ref _generation) == gen;
+
+        private void Post(int gen, Action action)
         {
             try
             {
-                _client = new TcpClient();
-                _client.Connect(host, port);
-                _stream = _client.GetStream();
+                Dispatcher.InvokeAsync(() => { if (IsCurrent(gen)) action(); }, DispatcherPriority.Render);
+            }
+            catch { /* 窗口关闭时调度器可能已停止 */ }
+        }
 
-                Handshake();
-                ServerInit();
+        private void Run(string host, int port, int gen)
+        {
+            var client = new TcpClient { NoDelay = true };
+            try
+            {
+                // QEMU 刚启动时端口可能尚未监听，短暂重试
+                for (int attempt = 0; ; attempt++)
+                {
+                    try { client.Connect(host, port); break; }
+                    catch (SocketException) when (attempt < 20 && IsCurrent(gen)) { Thread.Sleep(250); }
+                }
+                var stream = client.GetStream();
+                lock (_writeLock)
+                {
+                    if (!IsCurrent(gen)) return;
+                    _client = client;
+                    _stream = stream;
+                }
 
-                IsConnected = true;
-                Dispatcher.Invoke(() => OnConnected?.Invoke());
+                Handshake(stream);
+                ServerInit(stream, gen);
+                SendSetPixelFormat();
+                SendSetEncodings();
 
+                Post(gen, () =>
+                {
+                    IsConnected = true;
+                    OnConnected?.Invoke();
+                });
                 FramebufferUpdateRequest(false);
-                EventLoop();
+                EventLoop(stream, gen);
             }
             catch (Exception ex)
             {
@@ -108,332 +124,286 @@ namespace VMStart.UI.Controls
             }
             finally
             {
-                IsConnected = false;
-                Dispatcher.Invoke(() => OnDisconnected?.Invoke());
+                try { client.Close(); } catch { }
+                Post(gen, () =>
+                {
+                    bool was = IsConnected;
+                    IsConnected = false;
+                    if (was) OnDisconnected?.Invoke();
+                });
             }
         }
 
-        // ─── RFB Handshake ───
+        // ─── 握手 ───
 
-        private void Handshake()
+        private static void Handshake(NetworkStream s)
         {
-            var ver = ReadBytes(12);
-            var verStr = Encoding.ASCII.GetString(ver);
-            if (!verStr.StartsWith("RFB "))
-                throw new Exception("Invalid RFB protocol");
+            var ver = Encoding.ASCII.GetString(ReadBytes(s, 12));
+            if (!ver.StartsWith("RFB "))
+                throw new IOException("Invalid RFB protocol");
+            s.Write(Encoding.ASCII.GetBytes("RFB 003.008\n"));
 
-            WriteBytes(Encoding.ASCII.GetBytes("RFB 003.008\n"));
+            int numTypes = ReadU8(s);
+            if (numTypes == 0)
+            {
+                var reason = ReadBytes(s, (int)ReadU32(s));
+                throw new IOException("VNC refused: " + Encoding.UTF8.GetString(reason));
+            }
+            var types = ReadBytes(s, numTypes);
+            if (Array.IndexOf(types, (byte)1) < 0)
+                throw new IOException("VNC server requires authentication");
+            s.WriteByte(1); // None
 
-            int numTypes = ReadU8();
-            if (numTypes == 0) throw new Exception("No security types");
-            var types = ReadBytes(numTypes);
-
-            if (!Array.Exists(types, t => t == 1))
-                throw new Exception("No supported security type");
-            WriteBytes(new byte[] { 1 }); // None
-
-            uint result = ReadU32();
-            if (result != 0) throw new Exception($"Security failed: {result}");
+            if (ReadU32(s) != 0) throw new IOException("VNC security handshake failed");
+            s.WriteByte(1); // ClientInit：共享会话
         }
 
-        // ─── ServerInit ───
-
-        private void ServerInit()
+        private void ServerInit(NetworkStream s, int gen)
         {
-            _fbWidth = ReadU16();
-            _fbHeight = ReadU16();
+            int w = ReadU16(s), h = ReadU16(s);
+            ReadBytes(s, 16); // 服务端像素格式，随后改用自己的格式
+            uint nameLen = ReadU32(s);
+            if (nameLen > 0) ReadBytes(s, (int)nameLen);
+            Resize(w, h, gen);
+        }
 
-            // Pixel format (16 bytes)
-            var pf = ReadBytes(16);
-            _bpp = pf[0] / 8;
-            _bigEndian = pf[2] != 0;
-            _rMax = (uint)(pf[4] << 8 | pf[5]);
-            _gMax = (uint)(pf[6] << 8 | pf[7]);
-            _bMax = (uint)(pf[8] << 8 | pf[9]);
-            _rShift = pf[10];
-            _gShift = pf[11];
-            _bShift = pf[12];
-
-            // Desktop name
-            uint nameLen = ReadU32();
-            if (nameLen > 0) ReadBytes((int)nameLen);
-
-            // Create bitmap
-            Dispatcher.Invoke(() =>
+        private void Resize(int w, int h, int gen)
+        {
+            _fbWidth = w;
+            _fbHeight = h;
+            Post(gen, () =>
             {
-                _bitmap = new WriteableBitmap(_fbWidth, _fbHeight, 96, 96, PixelFormats.Bgra32, null);
+                _bitmap = new WriteableBitmap(Math.Max(w, 1), Math.Max(h, 1), 96, 96, PixelFormats.Bgr32, null);
                 _image.Source = _bitmap;
             });
         }
 
-        // ─── Event Loop ───
-
-        private void EventLoop()
+        // 32 位小端 true-color（B,G,R,X），可直接写入 Bgr32 位图
+        private void SendSetPixelFormat()
         {
-            while (_running)
+            Send(new byte[]
             {
-                if (!_stream.DataAvailable)
-                {
-                    Thread.Sleep(5);
-                    continue;
-                }
+                0, 0, 0, 0,
+                32, 24, 0, 1, 0, 255, 0, 255, 0, 255, 16, 8, 0, 0, 0, 0
+            });
+        }
 
-                byte msgType = ReadU8();
+        private void SendSetEncodings()
+        {
+            int[] encodings = { EncodingRaw, EncodingDesktopSize };
+            var m = new byte[4 + encodings.Length * 4];
+            m[0] = 2;
+            m[3] = (byte)encodings.Length;
+            for (int i = 0; i < encodings.Length; i++)
+            {
+                uint e = unchecked((uint)encodings[i]);
+                m[4 + i * 4] = (byte)(e >> 24);
+                m[5 + i * 4] = (byte)(e >> 16);
+                m[6 + i * 4] = (byte)(e >> 8);
+                m[7 + i * 4] = (byte)e;
+            }
+            Send(m);
+        }
+
+        // ─── 消息循环 ───
+
+        private void EventLoop(NetworkStream s, int gen)
+        {
+            while (IsCurrent(gen))
+            {
+                byte msgType = ReadU8(s);
                 switch (msgType)
                 {
-                    case 0: // FramebufferUpdate
-                        HandleFBUpdate();
+                    case 0:
+                        HandleFBUpdate(s, gen);
                         FramebufferUpdateRequest(true);
                         break;
-                    case 2: // Bell
-                        System.Media.SystemSounds.Beep.Play();
+                    case 2:
+                        Post(gen, () => System.Media.SystemSounds.Beep.Play());
                         break;
-                    case 3: // ServerCutText
-                        HandleServerCutText();
+                    case 3:
+                        HandleServerCutText(s, gen);
                         break;
+                    default:
+                        throw new IOException($"Unsupported RFB message {msgType}");
                 }
             }
         }
 
         private void FramebufferUpdateRequest(bool incremental)
         {
-            var m = new byte[] {
-                3, (byte)(incremental ? 1 : 0),
-                0, 0, 0, 0,
-                (byte)(_fbWidth >> 8), (byte)(_fbWidth & 0xFF),
-                (byte)(_fbHeight >> 8), (byte)(_fbHeight & 0xFF)
-            };
-            WriteBytes(m);
+            Send(new byte[]
+            {
+                3, (byte)(incremental ? 1 : 0), 0, 0, 0, 0,
+                (byte)(_fbWidth >> 8), (byte)_fbWidth,
+                (byte)(_fbHeight >> 8), (byte)_fbHeight
+            });
         }
 
-        private void HandleFBUpdate()
+        private void HandleFBUpdate(NetworkStream s, int gen)
         {
-            ReadU8(); // padding
-            int numRects = ReadU16();
-
+            ReadU8(s);
+            int numRects = ReadU16(s);
             for (int i = 0; i < numRects; i++)
             {
-                int x = ReadU16(), y = ReadU16();
-                int w = ReadU16(), h = ReadU16();
-                int enc = (int)ReadU32();
-
+                int x = ReadU16(s), y = ReadU16(s), w = ReadU16(s), h = ReadU16(s);
+                int enc = unchecked((int)ReadU32(s));
                 switch (enc)
                 {
-                    case 0: // Raw
-                        DecodeRaw(x, y, w, h);
-                        break;
-                    case -223: // DesktopSize
-                        _fbWidth = w;
-                        _fbHeight = h;
-                        Dispatcher.Invoke(() =>
+                    case EncodingRaw:
+                        var pixels = ReadBytes(s, w * h * 4);
+                        Post(gen, () =>
                         {
-                            _bitmap = new WriteableBitmap(w, h, 96, 96, PixelFormats.Bgra32, null);
-                            _image.Source = _bitmap;
+                            if (_bitmap == null || w == 0 || h == 0
+                                || x + w > _bitmap.PixelWidth || y + h > _bitmap.PixelHeight) return;
+                            _bitmap.WritePixels(new Int32Rect(x, y, w, h), pixels, w * 4, 0);
                         });
                         break;
-                    default:
-                        // Skip unsupported encodings
+                    case EncodingDesktopSize:
+                        Resize(w, h, gen);
                         break;
+                    default:
+                        // 未声明的编码长度未知，无法跳过
+                        throw new IOException($"Unexpected VNC encoding {enc}");
                 }
             }
         }
 
-        private void DecodeRaw(int x, int y, int w, int h)
+        private void HandleServerCutText(NetworkStream s, int gen)
         {
-            int rowBytes = w * _bpp;
-            byte[] rowBuf = new byte[rowBytes];
-
-            for (int row = 0; row < h; row++)
+            ReadBytes(s, 3);
+            var text = Encoding.Latin1.GetString(ReadBytes(s, (int)ReadU32(s)));
+            Post(gen, () =>
             {
-                ReadBytesInto(rowBuf, rowBytes);
-                int dstY = y + row;
-                if (dstY >= _fbHeight) continue;
-
-                // Convert to BGRA32 and write to bitmap
-                Dispatcher.Invoke(() =>
-                {
-                    if (_bitmap == null || dstY >= _bitmap.PixelHeight) return;
-                    int[] pixels = new int[w];
-                    for (int col = 0; col < w; col++)
-                    {
-                        int off = col * _bpp;
-                        uint pixel = 0;
-                        if (_bigEndian)
-                        {
-                            for (int b = 0; b < _bpp; b++)
-                                pixel = (pixel << 8) | rowBuf[off + b];
-                        }
-                        else
-                        {
-                            for (int b = 0; b < _bpp; b++)
-                                pixel |= (uint)rowBuf[off + b] << (b * 8);
-                        }
-                        uint r = ((pixel >> (int)_rShift) & _rMax) * 255 / Math.Max(_rMax, 1);
-                        uint g = ((pixel >> (int)_gShift) & _gMax) * 255 / Math.Max(_gMax, 1);
-                        uint bl = ((pixel >> (int)_bShift) & _bMax) * 255 / Math.Max(_bMax, 1);
-                        // BGRA
-                        pixels[col] = (int)(0xFF000000 | (r << 16) | (g << 8) | bl);
-                    }
-                    var rect = new Int32Rect(x, dstY, w, 1);
-                    _bitmap.WritePixels(rect, pixels, w * 4, 0);
-                }, DispatcherPriority.Render);
-            }
-        }
-
-        private void HandleServerCutText()
-        {
-            ReadBytes(3); // padding
-            uint len = ReadU32();
-            var text = ReadBytes((int)len);
-            var str = Encoding.UTF8.GetString(text);
-            Dispatcher.Invoke(() =>
-            {
-                try { Clipboard.SetText(str); } catch { }
+                try { Clipboard.SetText(text); } catch { }
             });
         }
 
-        // ─── Keyboard ───
+        // ─── 键盘 ───
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
             if (!IsConnected) { base.OnKeyDown(e); return; }
-            uint ks = WpfKeyToKeysym(e.Key);
-            SendKeyEvent(ks, true);
+            uint ks = Keysym(e.Key == Key.System ? e.SystemKey : e.Key);
+            if (ks != 0) SendKeyEvent(ks, true);
             e.Handled = true;
         }
 
         protected override void OnKeyUp(KeyEventArgs e)
         {
-            if (!IsConnected) return;
-            uint ks = WpfKeyToKeysym(e.Key);
-            SendKeyEvent(ks, false);
+            if (!IsConnected) { base.OnKeyUp(e); return; }
+            uint ks = Keysym(e.Key == Key.System ? e.SystemKey : e.Key);
+            if (ks != 0) SendKeyEvent(ks, false);
             e.Handled = true;
         }
 
         private void SendKeyEvent(uint keysym, bool down)
         {
-            var m = new byte[] {
+            Send(new byte[]
+            {
                 4, (byte)(down ? 1 : 0), 0, 0,
-                (byte)(keysym >> 24), (byte)((keysym >> 16) & 0xFF),
-                (byte)((keysym >> 8) & 0xFF), (byte)(keysym & 0xFF)
+                (byte)(keysym >> 24), (byte)(keysym >> 16), (byte)(keysym >> 8), (byte)keysym
+            });
+        }
+
+        // 发送未按 Shift 的 keysym，Shift 状态单独发送，由客户机组合出大写与符号
+        private static uint Keysym(Key key)
+        {
+            if (key >= Key.A && key <= Key.Z) return (uint)('a' + (key - Key.A));
+            if (key >= Key.D0 && key <= Key.D9) return (uint)('0' + (key - Key.D0));
+            if (key >= Key.NumPad0 && key <= Key.NumPad9) return 0xFFB0u + (uint)(key - Key.NumPad0);
+            if (key >= Key.F1 && key <= Key.F12) return 0xFFBEu + (uint)(key - Key.F1);
+            return key switch
+            {
+                Key.Space => 0x20,
+                Key.Return => 0xFF0D, Key.Tab => 0xFF09, Key.Back => 0xFF08,
+                Key.Escape => 0xFF1B, Key.Delete => 0xFFFF, Key.Insert => 0xFF63,
+                Key.Home => 0xFF50, Key.End => 0xFF57, Key.PageUp => 0xFF55, Key.PageDown => 0xFF56,
+                Key.Left => 0xFF51, Key.Up => 0xFF52, Key.Right => 0xFF53, Key.Down => 0xFF54,
+                Key.LeftShift => 0xFFE1, Key.RightShift => 0xFFE2,
+                Key.LeftCtrl => 0xFFE3, Key.RightCtrl => 0xFFE4,
+                Key.LeftAlt => 0xFFE9, Key.RightAlt => 0xFFEA,
+                Key.LWin => 0xFFEB, Key.RWin => 0xFFEC, Key.Apps => 0xFF67,
+                Key.CapsLock => 0xFFE5, Key.NumLock => 0xFF7F, Key.Scroll => 0xFF14,
+                Key.Pause => 0xFF13, Key.PrintScreen => 0xFF61,
+                Key.Multiply => 0xFFAA, Key.Add => 0xFFAB, Key.Subtract => 0xFFAD,
+                Key.Decimal => 0xFFAE, Key.Divide => 0xFFAF,
+                Key.OemMinus => '-', Key.OemPlus => '=', Key.OemComma => ',', Key.OemPeriod => '.',
+                Key.OemQuestion => '/', Key.OemSemicolon => ';', Key.OemQuotes => '\'',
+                Key.OemOpenBrackets => '[', Key.OemCloseBrackets => ']', Key.OemPipe => '\\',
+                Key.OemTilde => '`', Key.OemBackslash => '\\',
+                _ => 0
             };
-            WriteBytes(m);
         }
 
-        private uint WpfKeyToKeysym(Key key) => key switch
-        {
-            Key.Return => 0xFF0D, Key.Tab => 0xFF09, Key.Back => 0xFF08,
-            Key.Escape => 0xFF1B, Key.Delete => 0xFFFF,
-            Key.Home => 0xFF50, Key.End => 0xFF57,
-            Key.PageUp => 0xFF55, Key.PageDown => 0xFF56,
-            Key.Left => 0xFF51, Key.Up => 0xFF52,
-            Key.Right => 0xFF53, Key.Down => 0xFF54,
-            Key.Insert => 0xFF63,
-            Key.F1 => 0xFFBE, Key.F2 => 0xFFBF, Key.F3 => 0xFFC0,
-            Key.F4 => 0xFFC1, Key.F5 => 0xFFC2, Key.F6 => 0xFFC3,
-            Key.F7 => 0xFFC4, Key.F8 => 0xFFC5, Key.F9 => 0xFFC6,
-            Key.F10 => 0xFFC7, Key.F11 => 0xFFC8, Key.F12 => 0xFFC9,
-            Key.LeftShift or Key.RightShift => 0xFFE1,
-            Key.LeftCtrl or Key.RightCtrl => 0xFFE3,
-            Key.LeftAlt or Key.RightAlt => 0xFFE9,
-            Key.LWin or Key.RWin => 0xFFEB,
-            _ => KeyToChar(key)
-        };
-
-        private uint KeyToChar(Key key)
-        {
-            // Simple ASCII mapping for letter/number keys
-            int v = KeyInterop.VirtualKeyFromKey(key);
-            if (v >= 0x41 && v <= 0x5A) return (uint)v; // A-Z
-            if (v >= 0x30 && v <= 0x39) return (uint)v; // 0-9
-            if (v == 0x20) return 0x20; // Space
-            return 0;
-        }
-
-        // ─── Mouse ───
+        // ─── 鼠标（客户机需有 usb-tablet 才能绝对定位）───
 
         protected override void OnMouseDown(MouseButtonEventArgs e)
         {
             Focus();
-            if (e.LeftButton == MouseButtonState.Pressed) _mouseMask |= 1;
-            if (e.RightButton == MouseButtonState.Pressed) _mouseMask |= 4;
-            if (e.MiddleButton == MouseButtonState.Pressed) _mouseMask |= 2;
-            SendPointer(e);
+            SendPointer(e, 0);
         }
 
-        protected override void OnMouseUp(MouseButtonEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Released) _mouseMask &= unchecked((byte)~1);
-            if (e.RightButton == MouseButtonState.Released) _mouseMask &= unchecked((byte)~4);
-            if (e.MiddleButton == MouseButtonState.Released) _mouseMask &= unchecked((byte)~2);
-            SendPointer(e);
-        }
+        protected override void OnMouseUp(MouseButtonEventArgs e) => SendPointer(e, 0);
 
-        protected override void OnMouseMove(MouseEventArgs e)
-        {
-            if (_mouseMask != 0) SendPointer(e);
-        }
+        protected override void OnMouseMove(MouseEventArgs e) => SendPointer(e, 0);
 
         protected override void OnMouseWheel(MouseWheelEventArgs e)
         {
-            _mouseMask |= (byte)(e.Delta > 0 ? 8 : 16);
-            SendPointer(e);
-            _mouseMask &= unchecked((byte)~(8 | 16));
-            SendPointer(e);
+            byte wheel = (byte)(e.Delta > 0 ? 8 : 16);
+            SendPointer(e, wheel);
+            SendPointer(e, 0);
         }
 
-        private void SendPointer(MouseEventArgs e)
+        private void SendPointer(MouseEventArgs e, byte extra)
         {
-            if (_bitmap == null) return;
+            if (!IsConnected || _fbWidth == 0 || _fbHeight == 0) return;
+            byte mask = extra;
+            if (e.LeftButton == MouseButtonState.Pressed) mask |= 1;
+            if (e.MiddleButton == MouseButtonState.Pressed) mask |= 2;
+            if (e.RightButton == MouseButtonState.Pressed) mask |= 4;
             var pos = e.GetPosition(_image);
-            // Scale from image display size to framebuffer size
-            double scaleX = _fbWidth / Math.Max(_image.ActualWidth, 1);
-            double scaleY = _fbHeight / Math.Max(_image.ActualHeight, 1);
-            int vx = Math.Clamp((int)(pos.X * scaleX), 0, _fbWidth - 1);
-            int vy = Math.Clamp((int)(pos.Y * scaleY), 0, _fbHeight - 1);
-            var m = new byte[] {
-                5, _mouseMask,
-                (byte)(vx >> 8), (byte)(vx & 0xFF),
-                (byte)(vy >> 8), (byte)(vy & 0xFF)
-            };
-            WriteBytes(m);
+            int vx = Math.Clamp((int)(pos.X * _fbWidth / Math.Max(_image.ActualWidth, 1)), 0, _fbWidth - 1);
+            int vy = Math.Clamp((int)(pos.Y * _fbHeight / Math.Max(_image.ActualHeight, 1)), 0, _fbHeight - 1);
+            Send(new byte[] { 5, mask, (byte)(vx >> 8), (byte)vx, (byte)(vy >> 8), (byte)vy });
         }
 
-        // ─── Wire I/O ───
+        // ─── 读写 ───
 
-        private byte[] ReadBytes(int n)
+        private static byte[] ReadBytes(NetworkStream s, int n)
         {
             var buf = new byte[n];
-            ReadBytesInto(buf, n);
-            return buf;
-        }
-
-        private void ReadBytesInto(byte[] buf, int n)
-        {
             int got = 0;
             while (got < n)
             {
-                int r = _stream.Read(buf, got, n - got);
-                if (r <= 0) throw new IOException("Read failed");
+                int r = s.Read(buf, got, n - got);
+                if (r <= 0) throw new IOException("VNC connection closed");
                 got += r;
             }
+            return buf;
         }
 
-        private byte ReadU8() => ReadBytes(1)[0];
-        private int ReadU16()
+        private static byte ReadU8(NetworkStream s) => ReadBytes(s, 1)[0];
+
+        private static int ReadU16(NetworkStream s)
         {
-            var b = ReadBytes(2);
+            var b = ReadBytes(s, 2);
             return (b[0] << 8) | b[1];
         }
-        private uint ReadU32()
+
+        private static uint ReadU32(NetworkStream s)
         {
-            var b = ReadBytes(4);
+            var b = ReadBytes(s, 4);
             return ((uint)b[0] << 24) | ((uint)b[1] << 16) | ((uint)b[2] << 8) | b[3];
         }
 
-        private void WriteBytes(byte[] data)
+        private void Send(byte[] data)
         {
-            _stream?.Write(data, 0, data.Length);
+            lock (_writeLock)
+            {
+                try { _stream?.Write(data, 0, data.Length); }
+                catch { /* 连接断开由读线程处理 */ }
+            }
         }
 
         public void Dispose()

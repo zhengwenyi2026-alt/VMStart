@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.IO;
 
 namespace VMStart.Models
@@ -71,9 +72,10 @@ namespace VMStart.Models
         public string RomFilePath { get; set; } = "";
         public string ClassicMacModel { get; set; } = "";
         public List<SharedFolder> SharedFolders { get; set; } = new();
+        [JsonIgnore]
         public VMStatus Status { get; set; } = VMStatus.Stopped;
         public string NetworkMode { get; set; } = "user";
-        public string DisplayType { get; set; } = "cocoa";
+        public string DisplayType { get; set; } = "sdl";
         public int VncPort { get; set; } = 5900;
         public bool EnableAudio { get; set; } = true;
         public string SoundCardModel { get; set; } = "hda"; // hda, ac97, es1370, sb16
@@ -105,6 +107,7 @@ namespace VMStart.Models
         public bool EnableIPv6 { get; set; }
         public string BiosPath { get; set; } = "";
         public List<string> AdditionalArgs { get; set; } = new();
+        [JsonIgnore]
         public string BundlePath { get; set; } = "";
         public string Notes { get; set; } = "";
         public DateTime CreatedAt { get; set; } = DateTime.Now;
@@ -116,6 +119,7 @@ namespace VMStart.Models
         public bool EnableTerminal { get; set; }
         public bool EnableUnity { get; set; }
 
+        [JsonIgnore]
         public string ArchitectureDisplayName => Architecture switch
         {
             VMArchitecture.X86_64 => "x86_64",
@@ -130,6 +134,7 @@ namespace VMStart.Models
             _ => Architecture.ToString()
         };
 
+        [JsonIgnore]
         public string StatusDisplayName => Status switch
         {
             VMStatus.Running => "Running",
@@ -140,6 +145,7 @@ namespace VMStart.Models
             _ => "Stopped"
         };
 
+        [JsonIgnore]
         public System.Windows.Media.Brush StatusColor => Status switch
         {
             VMStatus.Running => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(64, 191, 96)),
@@ -158,85 +164,26 @@ namespace VMStart.Models
             File.WriteAllText(configPath, json);
         }
 
-        public bool LoadFromBundle(string path)
+        public static VirtualMachine Load(string path)
         {
-            BundlePath = path;
             var configPath = Path.Combine(path, "config.json");
-            if (!File.Exists(configPath)) return false;
+            if (!File.Exists(configPath)) return null;
             try
             {
-                var json = File.ReadAllText(configPath);
-                var vm = JsonSerializer.Deserialize<VirtualMachine>(json);
-                if (vm != null)
-                {
-                    Name = vm.Name;
-                    Id = vm.Id;
-                    Architecture = vm.Architecture;
-                    MachineType = vm.MachineType;
-                    CpuModel = vm.CpuModel;
-                    CpuCores = vm.CpuCores;
-                    CpuSockets = vm.CpuSockets;
-                    CpuCoresPerSocket = vm.CpuCoresPerSocket;
-                    MemoryValue = vm.MemoryValue;
-                    MemoryUnit = vm.MemoryUnit;
-                    DiskSizeValue = vm.DiskSizeValue;
-                    DiskSizeUnit = vm.DiskSizeUnit;
-                    DiskController = vm.DiskController ?? "VirtIO";
-                    NetworkMode = vm.NetworkMode;
-                    DisplayType = vm.DisplayType;
-                    VncPort = vm.VncPort;
-                    EnableAudio = vm.EnableAudio;
-                    SoundCardModel = vm.SoundCardModel ?? "hda";
-                    EnableUSB = vm.EnableUSB;
-                    UsbVersion = vm.UsbVersion ?? "3.0";
-                    EnableAcceleration = vm.EnableAcceleration;
-                    EnableTPM = vm.EnableTPM;
-                    Enable3DAcceleration = vm.Enable3DAcceleration;
-                    VramSizeMB = vm.VramSizeMB;
-                    MonitorCount = vm.MonitorCount;
-                    EnableHiDPI = vm.EnableHiDPI;
-                    EnableParallelPort = vm.EnableParallelPort;
-                    EnableSharedClipboard = vm.EnableSharedClipboard;
-                    EnableDragDrop = vm.EnableDragDrop;
-                    EnableTimeSync = vm.EnableTimeSync;
-                    PerformanceProfile = vm.PerformanceProfile ?? "balanced";
-                    Snapshots = vm.Snapshots ?? new();
-                    EnableAutoSnapshot = vm.EnableAutoSnapshot;
-                    AutoSnapshotInterval = vm.AutoSnapshotInterval;
-                    IsEncrypted = vm.IsEncrypted;
-                    IsFavorite = vm.IsFavorite;
-                    Group = vm.Group ?? "";
-                    PortForwards = vm.PortForwards ?? new();
-                    BridgeInterface = vm.BridgeInterface ?? "";
-                    HostOnlySubnet = vm.HostOnlySubnet ?? "";
-                    EnableDHCP = vm.EnableDHCP;
-                    DhcpRangeStart = vm.DhcpRangeStart ?? "";
-                    DhcpRangeEnd = vm.DhcpRangeEnd ?? "";
-                    EnableIPv6 = vm.EnableIPv6;
-                    BootISOPath = vm.BootISOPath;
-                    CdromImagePath = vm.CdromImagePath;
-                    FloppyAPath = vm.FloppyAPath;
-                    FloppyBPath = vm.FloppyBPath;
-                    RomFilePath = vm.RomFilePath;
-                    SharedFolders = vm.SharedFolders ?? new();
-                    Notes = vm.Notes;
-                    CreatedAt = vm.CreatedAt;
-                    LastUsedAt = vm.LastUsedAt;
-                    EnableModem = vm.EnableModem;
-                    ModemSpeed = vm.ModemSpeed;
-                    EnableTerminal = vm.EnableTerminal;
-                    EnableUnity = vm.EnableUnity;
-                    return true;
-                }
+                var vm = JsonSerializer.Deserialize<VirtualMachine>(File.ReadAllText(configPath));
+                if (vm == null) return null;
+                vm.BundlePath = path;
+                return vm;
             }
-            catch { }
-            return false;
+            catch { return null; }
         }
 
-        public string DefaultBundleDirectory()
+        public static string DefaultBundleDirectory()
         {
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(appData, "AirVM", "VirtualMachines");
+            var dir = Path.Combine(appData, "VMStart", "VirtualMachines");
+            Directory.CreateDirectory(dir);
+            return dir;
         }
     }
 }

@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -19,42 +21,79 @@ namespace VMStart.UI
         private bool _isPaused;
         private readonly StringBuilder _logBuffer = new();
         private int _activeTab; // 0=display, 1=log, 2=serial
-        private const int VNCPort = 5900;
-        private const int SerialPort = 4321;
+        private int _serialPort;
+
+        public bool IsVMRunning => _engine.IsRunning;
+        public VirtualMachine VM => _vm;
+        public event Action VMStateChanged;
+
+        public void SendMonitorCommand(string command) => _engine.SendMonitorCommand(command);
 
         public ConsoleWindow(VirtualMachine vm)
         {
             InitializeComponent();
             _vm = vm;
-            Title = $"{vm.Name} — AirVM Console";
+            Title = $"{vm.Name} — VMStart Console";
             ToolbarVMName.Text = vm.Name;
 
             _engine = new QEMUEngine(vm);
             _engine.OnOutput += AppendLog;
             _engine.OnError += AppendLog;
-            _engine.OnStarted += () => Dispatcher.Invoke(() => OnVMStarted());
-            _engine.OnStopped += (code) => Dispatcher.Invoke(() => OnVMStopped(code));
+            _engine.OnStarted += () => Dispatcher.InvokeAsync(OnVMStarted);
+            _engine.OnStopped += (code) => Dispatcher.InvokeAsync(() => OnVMStopped(code));
+
+            VNCViewer.OnConnected += () =>
+            {
+                AppendLog("[VNC] Display connected");
+                StatusBar.Text = $"Running ({VNCViewer.FramebufferWidth}x{VNCViewer.FramebufferHeight})";
+            };
+            VNCViewer.OnDisconnected += () => AppendLog("[VNC] Display disconnected");
 
             Closed += (s, e) =>
             {
                 VNCViewer?.Dispose();
                 SerialTerminal?.Dispose();
-                if (_engine.IsRunning) _engine.ForceStop();
+                _engine.Dispose();
             };
+        }
+
+        // 每台虚拟机各自取空闲端口，多台同时运行时不会冲突
+        private static int FreeTcpPort()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            listener.Stop();
+            return port;
+        }
+
+        private static int FreeVncPort()
+        {
+            for (int port = 5900; port < 6000; port++)
+            {
+                try
+                {
+                    var listener = new TcpListener(IPAddress.Loopback, port);
+                    listener.Start();
+                    listener.Stop();
+                    return port;
+                }
+                catch (SocketException) { }
+            }
+            throw new InvalidOperationException("No free VNC port in 5900-5999");
         }
 
         public void StartVM()
         {
+            if (_engine.IsRunning) return;
             ShowSplash("Starting virtual machine...");
-
-            // Configure VNC display and serial port
-            _vm.DisplayType = "none";
-            _vm.VncPort = VNCPort;
-            _vm.AdditionalArgs.Add("-serial");
-            _vm.AdditionalArgs.Add($"telnet:127.0.0.1:{SerialPort},server,nowait");
 
             try
             {
+                _vm.VncPort = FreeVncPort();
+                _serialPort = FreeTcpPort();
+                _engine.RuntimeArgs.Clear();
+                _engine.RuntimeArgs.AddRange(new[] { "-serial", $"tcp:127.0.0.1:{_serialPort},server=on,wait=off" });
                 _engine.Start();
             }
             catch (Exception ex)
@@ -62,7 +101,16 @@ namespace VMStart.UI
                 HideSplash();
                 AppendLog($"[ERROR] {ex.Message}");
                 StatusBar.Text = "Failed to start";
+                MessageBox.Show(this, ex.Message, "VMStart", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        public void StopVM()
+        {
+            if (!_engine.IsRunning) return;
+            AppendLog("[VMStart] Sending shutdown signal...");
+            _engine.Stop();
+            StatusBar.Text = "Stopping...";
         }
 
         private void OnVMStarted()
@@ -72,47 +120,21 @@ namespace VMStart.UI
             PauseBtn.IsEnabled = true;
             CaptureBtn.IsEnabled = true;
             StatusBar.Text = $"Running (PID: {_engine.ProcessId})";
-            AppendLog("[AirVM] Virtual machine started successfully.");
+            AppendLog("[VMStart] Virtual machine started successfully.");
+            VMStateChanged?.Invoke();
 
-            // Connect VNC viewer (delayed for QEMU to start listening)
-            var timer = new System.Windows.Threading.DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(1.0)
-            };
+            int vncPort = _vm.VncPort, serialPort = _serialPort;
+            // 稍候再连，等 QEMU 开始监听
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.0) };
             timer.Tick += (s, args) =>
             {
                 timer.Stop();
-                try
-                {
-                    VNCViewer.Connect("127.0.0.1", VNCPort);
-                    AppendLog($"[VNC] Connecting to 127.0.0.1:{VNCPort}...");
-                }
-                catch (Exception ex)
-                {
-                    AppendLog($"[VNC] Connection failed: {ex.Message}");
-                }
+                if (!_engine.IsRunning) return;
+                AppendLog($"[VNC] Connecting to 127.0.0.1:{vncPort}...");
+                VNCViewer.Connect("127.0.0.1", vncPort);
+                SerialTerminal.Connect("127.0.0.1", serialPort);
             };
             timer.Start();
-
-            // Connect serial terminal (slightly later)
-            var serialTimer = new System.Windows.Threading.DispatcherTimer
-            {
-                Interval = TimeSpan.FromSeconds(1.5)
-            };
-            serialTimer.Tick += (s, args) =>
-            {
-                serialTimer.Stop();
-                try { SerialTerminal.Connect("127.0.0.1", SerialPort); }
-                catch { }
-            };
-            serialTimer.Start();
-
-            VNCViewer.OnConnected += () =>
-            {
-                AppendLog("[VNC] Display connected");
-                StatusBar.Text = $"Running ({VNCViewer.FramebufferWidth}x{VNCViewer.FramebufferHeight})";
-            };
-            VNCViewer.OnDisconnected += () => AppendLog("[VNC] Display disconnected");
         }
 
         private void OnVMStopped(int exitCode)
@@ -123,25 +145,26 @@ namespace VMStart.UI
             PauseBtn.Content = "⏸ Pause";
             _isPaused = false;
             StatusBar.Text = $"Stopped (exit code: {exitCode})";
-            AppendLog($"[AirVM] Virtual machine stopped (exit code: {exitCode}).");
+            AppendLog($"[VMStart] Virtual machine stopped (exit code: {exitCode}).");
+            VNCViewer.Disconnect();
+            SerialTerminal.Disconnect();
+            VMStateChanged?.Invoke();
         }
 
         // ─── Toolbar Actions ───
         private void ToggleStartStop(object sender, RoutedEventArgs e)
         {
             if (_engine.IsRunning)
-            {
-                AppendLog("[AirVM] Sending shutdown signal...");
-                _engine.Stop();
-                StatusBar.Text = "Stopping...";
-            }
+                StopVM();
             else
             {
                 StartVM();
             }
         }
 
-        private void TogglePause(object sender, RoutedEventArgs e)
+        private void TogglePause(object sender, RoutedEventArgs e) => TogglePauseVM();
+
+        public void TogglePauseVM()
         {
             if (!_engine.IsRunning) return;
             if (_isPaused)
@@ -150,7 +173,7 @@ namespace VMStart.UI
                 PauseBtn.Content = "⏸ Pause";
                 _isPaused = false;
                 StatusBar.Text = "Running";
-                AppendLog("[AirVM] Resumed.");
+                AppendLog("[VMStart] Resumed.");
             }
             else
             {
@@ -158,7 +181,7 @@ namespace VMStart.UI
                 PauseBtn.Content = "▶ Resume";
                 _isPaused = true;
                 StatusBar.Text = "Paused";
-                AppendLog("[AirVM] Paused.");
+                AppendLog("[VMStart] Paused.");
             }
         }
 
@@ -177,7 +200,7 @@ namespace VMStart.UI
                 if (dlg.ShowDialog() == true)
                 {
                     _vm.CdromImagePath = dlg.FileName;
-                    _engine.SendMonitorCommand($"change cdrom \"{dlg.FileName}\"");
+                    _engine.SendMonitorCommand($"change {QEMUEngine.CdromDriveId} \"{dlg.FileName}\"");
                     AppendLog($"[Media] CD-ROM changed to: {Path.GetFileName(dlg.FileName)}");
                 }
             };
@@ -202,7 +225,7 @@ namespace VMStart.UI
             ejectCdrom.Click += (s, args) =>
             {
                 _vm.CdromImagePath = "";
-                _engine.SendMonitorCommand("eject cdrom");
+                _engine.SendMonitorCommand($"eject {QEMUEngine.CdromDriveId}");
                 AppendLog("[Media] CD-ROM ejected.");
             };
 
@@ -231,7 +254,7 @@ namespace VMStart.UI
         {
             if (!_engine.IsRunning) return;
             var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "AirVM");
+                Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "VMStart");
             Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, $"screenshot_{DateTime.Now:yyyyMMdd_HHmmss}.ppm");
             _engine.SendMonitorCommand($"screendump \"{path}\"");
@@ -295,7 +318,7 @@ namespace VMStart.UI
         // ─── Logging ───
         private void AppendLog(string text)
         {
-            Dispatcher.Invoke(() =>
+            Dispatcher.InvokeAsync(() =>
             {
                 LogView.AppendText(text + Environment.NewLine);
                 LogView.ScrollToEnd();
