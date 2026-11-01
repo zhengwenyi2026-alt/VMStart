@@ -1101,7 +1101,10 @@
     NSDictionary *config = [VMStartVirtualMachine bestConfigForOSType:osType architecture:architecture];
     VMStartVirtualMachine *vm = [VMStartVirtualMachine virtualMachineWithName:name architecture:architecture];
     vm.osType = osType;
-    vm.machineType = config[@"machine"];
+    // machineType 直接用 bestConfig 返回的值；x86 系列统一用 "q35"（QEMU 10+ 不再接受 "pc-q35"）
+    NSString *cfgMachine = config[@"machine"];
+    if ([cfgMachine isEqualToString:@"pc-q35"]) cfgMachine = @"q35";
+    vm.machineType = cfgMachine;
     vm.cpuModel = config[@"cpu"];
     vm.cpuCores = [config[@"cores"] integerValue];
     vm.cpuSockets = 1;
@@ -1180,10 +1183,12 @@
     }
 
     [vm saveToBundle];
-    // 去重：如果已存在相同名称的 VM，先移除旧的（同一 ISO 会生成相同名称）
+    // 去重：从磁盘重新加载 VM 列表，确保包含所有现有 VM
+    [self refreshVMList];
+    // 如果已存在相同名称的 VM，先移除旧的（同一 ISO 会生成相同名称）
     NSMutableArray *toRemove = [NSMutableArray array];
     for (VMStartVirtualMachine *existing in self.virtualMachines) {
-        if ([existing.name isEqualToString:vm.name]) {
+        if ([existing.name isEqualToString:vm.name] && ![existing.vmIdentifier isEqualToString:vm.vmIdentifier]) {
             [toRemove addObject:existing];
         }
     }
