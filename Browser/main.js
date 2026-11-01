@@ -37,12 +37,13 @@ function save(name, value) {
 
 const isImage = (file) => IMAGE_EXTS.includes(path.extname(file).toLowerCase());
 
-// 下载目录下的同名文件自动加序号，避免覆盖已下载的镜像
+// 下载目录下的同名文件自动加序号，避免覆盖已下载或正在下载的镜像
 function uniquePath(dir, filename) {
   const ext = path.extname(filename);
   const base = path.basename(filename, ext);
   let candidate = path.join(dir, filename);
-  for (let i = 1; fs.existsSync(candidate); i++) candidate = path.join(dir, `${base} (${i})${ext}`);
+  const taken = (p) => fs.existsSync(p) || [...live.values()].some((r) => r.path === p);
+  for (let i = 1; taken(candidate); i++) candidate = path.join(dir, `${base} (${i})${ext}`);
   return candidate;
 }
 
