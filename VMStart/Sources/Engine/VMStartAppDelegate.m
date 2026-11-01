@@ -193,8 +193,9 @@
     // Edit menu
     NSMenuItem *editMenuItem = [[NSMenuItem alloc] init];
     NSMenu *editMenu = [[NSMenu alloc] initWithTitle:AMLocalizedString(@"menu.edit")];
-    [editMenu addItemWithTitle:AMLocalizedString(@"menu.undo") action:@selector(undo:) keyEquivalent:@"z"];
-    [editMenu addItemWithTitle:AMLocalizedString(@"menu.redo") action:@selector(redo:) keyEquivalent:@"Z"];
+    // undo:/redo: 由响应链上的 NSUndoManager 处理，没有公开声明
+    [editMenu addItemWithTitle:AMLocalizedString(@"menu.undo") action:NSSelectorFromString(@"undo:") keyEquivalent:@"z"];
+    [editMenu addItemWithTitle:AMLocalizedString(@"menu.redo") action:NSSelectorFromString(@"redo:") keyEquivalent:@"Z"];
     [editMenu addItem:[NSMenuItem separatorItem]];
     [editMenu addItemWithTitle:AMLocalizedString(@"menu.cut") action:@selector(cut:) keyEquivalent:@"x"];
     [editMenu addItemWithTitle:AMLocalizedString(@"menu.copy") action:@selector(copy:) keyEquivalent:@"c"];

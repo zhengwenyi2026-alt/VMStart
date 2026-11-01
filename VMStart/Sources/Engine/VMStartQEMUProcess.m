@@ -68,13 +68,14 @@
                                                  name:NSFileHandleReadCompletionNotification object:[self.stdoutPipe fileHandleForReading]];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleError:)
                                                  name:NSFileHandleReadCompletionNotification object:[self.stderrPipe fileHandleForReading]];
+    // 有意强引用：保证 QEMU 退出前本对象不被释放；退出时清空回调解除循环
+    VMStartQEMUProcess *process = self;
     self.qemuTask.terminationHandler = ^(NSTask *task) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            // 清空回调以解除 self → task → 回调 → self 的循环引用
             task.terminationHandler = nil;
-            self.isRunning = NO;
-            self.virtualMachine.status = VMStartStatusStopped;
-            [self.delegate qemuProcessDidStop:self exitCode:task.terminationStatus];
+            process.isRunning = NO;
+            process.virtualMachine.status = VMStartStatusStopped;
+            [process.delegate qemuProcessDidStop:process exitCode:task.terminationStatus];
         });
     };
     @try {

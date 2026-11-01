@@ -7,6 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSION="${VERSION:-1.0.0}"
 TARGET="${1:-all}"
+cd "$SCRIPT_DIR"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -19,8 +20,9 @@ err() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 build_macos() {
     local ARCH="$1"
-    local RUNNER="$2"
-    local OUTPUT_DIR="$SCRIPT_DIR/dmg"
+    # 与 dmg/ 现有目录保持一致：Apple 芯片放 apple_silicon，Intel 放 x86_64
+    local SUBDIR="$ARCH"; [ "$ARCH" = arm64 ] && SUBDIR=apple_silicon
+    local OUTPUT_DIR="$SCRIPT_DIR/dmg/$SUBDIR"
     
     log "构建 macOS DMG ($ARCH)..."
     
@@ -38,8 +40,7 @@ build_macos() {
         ARCHS="${ARCH}" \
         clean build
     
-    # 打包 DMG
-    mkdir -p "$OUTPUT_DIR/${ARCH}"
+    mkdir -p "$OUTPUT_DIR"
     APP_PATH=$(find "build/DerivedData-${ARCH}/Build/Products/Release" -name "VMStart.app" -maxdepth 1 | head -1)
     
     if [ -z "$APP_PATH" ]; then
@@ -48,16 +49,23 @@ build_macos() {
     fi
     
     DMG_TEMP=$(mktemp -d)
-    cp -R "$APP_PATH" "$DMG_TEMP/"
+    ditto "$APP_PATH" "$DMG_TEMP/VMStart.app"
+    xattr -cr "$DMG_TEMP/VMStart.app"
+    codesign --force --deep --sign - "$DMG_TEMP/VMStart.app"
+    codesign --verify --deep --strict "$DMG_TEMP/VMStart.app"
     ln -s /Applications "$DMG_TEMP/Applications"
     
     hdiutil create -volname "VMStart" \
         -srcfolder "$DMG_TEMP" \
         -ov -format UDZO \
-        "$OUTPUT_DIR/${ARCH}/VMStart-${VERSION}-${ARCH}.dmg"
+        "$OUTPUT_DIR/VMStart-${VERSION}-${ARCH}.dmg"
+    
+    # 官网与 install.sh 下载的是 ZIP
+    rm -f "$OUTPUT_DIR/VMStart-${VERSION}-macOS-${ARCH}.zip"
+    (cd "$DMG_TEMP" && ditto -c -k --sequesterRsrc --keepParent VMStart.app "$OUTPUT_DIR/VMStart-${VERSION}-macOS-${ARCH}.zip")
     
     rm -rf "$DMG_TEMP"
-    ok "DMG 已创建: $OUTPUT_DIR/${ARCH}/VMStart-${VERSION}-${ARCH}.dmg"
+    ok "已创建: $OUTPUT_DIR/VMStart-${VERSION}-${ARCH}.dmg 与 VMStart-${VERSION}-macOS-${ARCH}.zip"
 }
 
 build_windows_docker() {
@@ -84,10 +92,10 @@ build_windows_docker() {
 
 case "$TARGET" in
     arm64|apple_silicon)
-        build_macos "arm64" "macos-15"
+        build_macos arm64
         ;;
     x86_64|intel)
-        build_macos "x86_64" "macos-13"
+        build_macos x86_64
         ;;
     win-x64|windows-x64)
         build_windows_docker "win-x64"
@@ -98,9 +106,9 @@ case "$TARGET" in
     all)
         log "=== 全架构构建 ==="
         echo ""
-        build_macos "arm64" "macos-15"
+        build_macos arm64
         echo ""
-        build_macos "x86_64" "macos-13"
+        build_macos x86_64
         echo ""
         build_windows_docker "win-x64"
         echo ""
