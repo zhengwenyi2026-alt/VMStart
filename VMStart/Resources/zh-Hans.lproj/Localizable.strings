@@ -565,3 +565,10 @@
 "cli.install.done.message" = "已安装到 %@。在终端输入 vmstart help 查看全部命令。";
 "cli.install.failed.title" = "无法安装命令行工具";
 "cli.install.failed.message" = "没有可写入的 /opt/homebrew/bin 或 /usr/local/bin。可在终端手动执行：\nsudo ln -sf \"%@\" /usr/local/bin/vmstart";
+"browserImport.missingISO.title" = "镜像文件不存在";
+"browserImport.missingISO.message" = "找不到镜像文件：%@";
+"browserImport.diskCreateFailed.title" = "无法创建虚拟磁盘";
+"browserImport.diskCreateFailed.message" = "创建磁盘时出错：%@";
+"browserImport.diskCreateFailed.status" = "qemu-img 执行失败，请检查是否有足够的磁盘空间。";
+"browserImport.qemuImgNotFound.title" = "未找到 qemu-img";
+"browserImport.qemuImgNotFound.message" = "无法找到 qemu-img 工具。请安装 QEMU 或将其添加到 PATH。";

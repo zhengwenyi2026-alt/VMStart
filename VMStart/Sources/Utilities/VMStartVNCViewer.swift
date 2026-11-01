@@ -233,6 +233,12 @@ enum VNCButton {
         let nameLen = try readU32()
         if nameLen > 0 { let _ = try readBytes(Int(nameLen)) }
         fb = [UInt8](repeating: 0, count: framebufferWidth * framebufferHeight * bytesPerPixel)
+        // SetPixelFormat：32bpp, 24-bit depth, little-endian, true-color, RGB shifts 16/8/0
+        var setPf: [UInt8] = [0, 0, 0, 0]  // message type 0 + padding
+        setPf += [32, 24, 0, 1]  // bpp, depth, bigEndian=0, trueColor=1
+        setPf += be16(255); setPf += be16(255); setPf += be16(255)  // redMax, greenMax, blueMax
+        setPf += [16, 8, 0, 0, 0, 0]  // redShift, greenShift, blueShift, padding
+        try writeBytes(setPf)
         // SetEncodings：Raw(0) + DesktopSize(-223)，客户机切换分辨率时能收到新尺寸
         var enc: [UInt8] = [2, 0]
         enc += be16(2); enc += be32(0); enc += be32(UInt32(bitPattern: -223))

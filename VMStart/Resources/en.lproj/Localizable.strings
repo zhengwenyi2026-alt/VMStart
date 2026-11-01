@@ -565,3 +565,10 @@
 "cli.install.done.message" = "Installed to %@. Run vmstart help in Terminal to see all commands.";
 "cli.install.failed.title" = "Unable to Install Command Line Tool";
 "cli.install.failed.message" = "Neither /opt/homebrew/bin nor /usr/local/bin is writable. Run this in Terminal:\nsudo ln -sf \"%@\" /usr/local/bin/vmstart";
+"browserImport.missingISO.title" = "Image File Not Found";
+"browserImport.missingISO.message" = "Cannot find image file: %@";
+"browserImport.diskCreateFailed.title" = "Unable to Create Virtual Disk";
+"browserImport.diskCreateFailed.message" = "Error creating disk: %@";
+"browserImport.diskCreateFailed.status" = "qemu-img failed. Please check if there is enough disk space.";
+"browserImport.qemuImgNotFound.title" = "qemu-img Not Found";
+"browserImport.qemuImgNotFound.message" = "Cannot find qemu-img tool. Please install QEMU or add it to PATH.";

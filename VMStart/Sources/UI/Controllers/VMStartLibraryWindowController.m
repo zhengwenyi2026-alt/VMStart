@@ -1125,15 +1125,54 @@
     [[NSFileManager defaultManager] createDirectoryAtPath:vmPath withIntermediateDirectories:YES attributes:nil error:nil];
     BOOL opticalImage = [@[@"iso", @"img"] containsObject:path.pathExtension.lowercaseString];
     if (opticalImage) {
+        // 检查 ISO 文件是否存在
+        if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+            NSAlert *alert = [[NSAlert alloc] init];
+            alert.messageText = AMLocalizedString(@"browserImport.missingISO.title");
+            alert.informativeText = [NSString stringWithFormat:AMLocalizedString(@"browserImport.missingISO.message"), path.lastPathComponent];
+            [alert runModal];
+            return;
+        }
         vm.bootISOPath = path;
         vm.diskImagePath = [vmPath stringByAppendingPathComponent:@"disk.qcow2"];
-        NSString *qemuImg = [[NSFileManager defaultManager] isExecutableFileAtPath:@"/opt/homebrew/bin/qemu-img"] ? @"/opt/homebrew/bin/qemu-img" : @"/usr/local/bin/qemu-img";
-        if ([[NSFileManager defaultManager] isExecutableFileAtPath:qemuImg]) {
+        // 查找 qemu-img
+        NSString *qemuImg = nil;
+        for (NSString *dir in @[@"/opt/homebrew/bin", @"/usr/local/bin", @"/usr/bin"]) {
+            NSString *candidate = [dir stringByAppendingPathComponent:@"qemu-img"];
+            if ([[NSFileManager defaultManager] isExecutableFileAtPath:candidate]) {
+                qemuImg = candidate;
+                break;
+            }
+        }
+        if (qemuImg) {
             NSTask *task = [[NSTask alloc] init];
             task.executableURL = [NSURL fileURLWithPath:qemuImg];
             task.arguments = @[@"create", @"-f", @"qcow2", vm.diskImagePath, [NSString stringWithFormat:@"%ldG", (long)vm.diskSizeValue]];
-            [task launchAndReturnError:nil];
+            task.standardOutput = [NSPipe pipe];
+            task.standardError = [NSPipe pipe];
+            NSError *launchError = nil;
+            [task launchAndReturnError:&launchError];
+            if (launchError) {
+                NSAlert *alert = [[NSAlert alloc] init];
+                alert.messageText = AMLocalizedString(@"browserImport.diskCreateFailed.title");
+                alert.informativeText = [NSString stringWithFormat:AMLocalizedString(@"browserImport.diskCreateFailed.message"), launchError.localizedDescription];
+                [alert runModal];
+                return;
+            }
             [task waitUntilExit];
+            if (task.terminationStatus != 0) {
+                NSAlert *alert = [[NSAlert alloc] init];
+                alert.messageText = AMLocalizedString(@"browserImport.diskCreateFailed.title");
+                alert.informativeText = AMLocalizedString(@"browserImport.diskCreateFailed.status");
+                [alert runModal];
+                return;
+            }
+        } else {
+            NSAlert *alert = [[NSAlert alloc] init];
+            alert.messageText = AMLocalizedString(@"browserImport.qemuImgNotFound.title");
+            alert.informativeText = AMLocalizedString(@"browserImport.qemuImgNotFound.message");
+            [alert runModal];
+            return;
         }
     } else {
         vm.diskImagePath = path;
@@ -1141,6 +1180,14 @@
     }
 
     [vm saveToBundle];
+    // 去重：如果已存在相同 identifier 的 VM，先移除旧的
+    NSMutableArray *toRemove = [NSMutableArray array];
+    for (VMStartVirtualMachine *existing in self.virtualMachines) {
+        if ([existing.vmIdentifier isEqualToString:vm.vmIdentifier]) {
+            [toRemove addObject:existing];
+        }
+    }
+    [self.virtualMachines removeObjectsInArray:toRemove];
     [self.virtualMachines addObject:vm];
     [self sortVMs];
     self.filteredVMs = nil;
