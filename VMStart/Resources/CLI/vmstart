@@ -29,11 +29,23 @@ app_installed() { [ -n "$(mdfind "kMDItemCFBundleIdentifier == '$1'" 2>/dev/null
 # 向 VMStart 发送 vmstart:// 命令
 vmstart_url() { open "vmstart://$1" || die "$(t '无法打开 VMStart，请确认已安装到“应用程序”文件夹' 'Cannot open VMStart. Install it into /Applications first.')"; }
 
+# 镜像工具不在“应用程序”时系统按 ID/名称找不到它，运行中则直接取进程所在的 App 路径
+running_tool_bundle() {
+  [ -f "$TOOL_STATE" ] || return 1
+  local pid; pid="$(plutil -extract pid raw "$TOOL_STATE" 2>/dev/null)"
+  [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null || return 1
+  osascript -l JavaScript -e "ObjC.import('AppKit'); const a = \$.NSRunningApplication.runningApplicationWithProcessIdentifier($pid); a.isNil() ? '' : a.bundleURL.path.js" 2>/dev/null
+}
+
 # 把命令转交给镜像工具：已运行时由单实例机制接收，未运行时直接启动
 tool() {
+  local bundle; bundle="$(running_tool_bundle)"
+  if [ -n "$bundle" ] && [ -d "$bundle" ]; then
+    open -n "$bundle" --args "$@" && return 0
+  fi
   open -n -b "$TOOL_ID" --args "$@" 2>/dev/null \
     || open -n -a "VMStart 镜像工具" --args "$@" 2>/dev/null \
-    || die "$(t '未找到 VMStart 镜像工具' 'VMStart Image Tool not found')"
+    || die "$(t '未找到 VMStart 镜像工具，请先把它拖入“应用程序”文件夹并打开一次' 'VMStart Image Tool not found. Move it into /Applications and open it once.')"
 }
 
 usage() {
@@ -147,7 +159,7 @@ tool_running() {
 }
 
 print_downloads() {
-  tool_running || { t '镜像工具未运行。' 'The image tool is not running.'; echo; return 1; }
+  tool_running || { echo "vmstart: $(t '镜像工具未运行' 'The image tool is not running')" >&2; return 1; }
   if [ "$1" = "--json" ]; then cat "$TOOL_STATE"; echo; return 0; fi
   osascript -l JavaScript - "$TOOL_STATE" "$ZH" "${2:-0}" <<'EOF' 2>/dev/null
 ObjC.import('Foundation');
@@ -244,7 +256,7 @@ case "$cmd" in
   home|back|forward|reload)
     tool "$cmd" ;;
   quit-tool)
-    tool_running && tool quit ;;
+    if tool_running; then tool quit; fi ;;
   *)
     usage >&2; exit 1 ;;
 esac
