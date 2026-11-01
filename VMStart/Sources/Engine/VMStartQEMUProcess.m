@@ -70,6 +70,8 @@
                                                  name:NSFileHandleReadCompletionNotification object:[self.stderrPipe fileHandleForReading]];
     self.qemuTask.terminationHandler = ^(NSTask *task) {
         dispatch_async(dispatch_get_main_queue(), ^{
+            // 清空回调以解除 self → task → 回调 → self 的循环引用
+            task.terminationHandler = nil;
             self.isRunning = NO;
             self.virtualMachine.status = VMStartStatusStopped;
             [self.delegate qemuProcessDidStop:self exitCode:task.terminationStatus];
@@ -85,11 +87,11 @@
         [self.delegate qemuProcessDidStart:self];
         return YES;
     } @catch (NSException *exception) {
-        if (error) {
-            *error = [NSError errorWithDomain:@"VMStart" code:3
-                                     userInfo:@{NSLocalizedDescriptionKey: exception.reason ?: @"Failed to launch QEMU"}];
-        }
-        [self.delegate qemuProcess:self didFailWithError:*error];
+        self.qemuTask.terminationHandler = nil;
+        NSError *launchError = [NSError errorWithDomain:@"VMStart" code:3
+                                               userInfo:@{NSLocalizedDescriptionKey: exception.reason ?: @"Failed to launch QEMU"}];
+        if (error) *error = launchError;
+        [self.delegate qemuProcess:self didFailWithError:launchError];
         return NO;
     }
 }

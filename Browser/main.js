@@ -341,7 +341,7 @@ app.whenReady().then(() => {
     commandQueue.splice(0).forEach(runCommand);
   });
   ipcMain.handle('prefs', () => prefs);
-  ipcMain.handle('set-auto-add', (_e, on) => { prefs.autoAdd = !!on; save('prefs.json', prefs); return prefs; });
+  ipcMain.handle('set-auto-add', (_e, on) => { prefs.autoAdd = !!on; save('prefs.json', prefs); scheduleState(); return prefs; });
 
   ipcMain.handle('action', (_e, id, act) => {
     const rec = live.get(id);

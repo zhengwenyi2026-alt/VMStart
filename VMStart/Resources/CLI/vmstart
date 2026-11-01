@@ -26,8 +26,24 @@ abspath() {
 
 app_installed() { [ -n "$(mdfind "kMDItemCFBundleIdentifier == '$1'" 2>/dev/null | head -1)" ] || [ -d "/Applications/$2.app" ]; }
 
+# 解析软链接后定位脚本所在的 VMStart.app；系统里装有多份时命令只交给这一份处理
+self_app() {
+  local p="${BASH_SOURCE[0]}" d
+  while [ -L "$p" ]; do
+    d="$(cd "$(dirname "$p")" && pwd -P)"
+    p="$(readlink "$p")"
+    case "$p" in /*) ;; *) p="$d/$p" ;; esac
+  done
+  d="$(cd "$(dirname "$p")/../../.." 2>/dev/null && pwd -P)"
+  case "$d" in *.app) [ -d "$d/Contents/MacOS" ] && printf '%s' "$d" ;; esac
+}
+SELF_APP="$(self_app)"
+
 # 向 VMStart 发送 vmstart:// 命令
-vmstart_url() { open "vmstart://$1" || die "$(t '无法打开 VMStart，请确认已安装到“应用程序”文件夹' 'Cannot open VMStart. Install it into /Applications first.')"; }
+vmstart_url() {
+  if [ -n "$SELF_APP" ]; then open -a "$SELF_APP" "vmstart://$1" && return 0; fi
+  open "vmstart://$1" || die "$(t '无法打开 VMStart，请确认已安装到“应用程序”文件夹' 'Cannot open VMStart. Install it into /Applications first.')"
+}
 
 # 镜像工具不在“应用程序”时系统按 ID/名称找不到它，运行中则直接取进程所在的 App 路径
 running_tool_bundle() {
@@ -146,11 +162,15 @@ function run(argv) {
     try { const c = JSON.parse(s.js); vms.push({ path: `${dir}/${it}`, name: c.name || '', id: c.identifier || '' }); } catch (e) {}
   }
   const k = key.toLowerCase();
-  const hit = vms.find((v) => v.id === key || v.name.toLowerCase() === k) || vms.find((v) => v.name.toLowerCase().startsWith(k));
+  const hit = vms.find((v) => v.id.toLowerCase() === k || v.name.toLowerCase() === k)
+    || vms.find((v) => v.name.toLowerCase().startsWith(k))
+    || (k.length >= 4 ? vms.find((v) => v.id.toLowerCase().startsWith(k)) : undefined);
   return hit ? hit.path : '';
 }
 EOF
 }
+
+vm_id() { plutil -extract identifier raw "$1/vm.json" 2>/dev/null || basename "$1" .vmstart; }
 
 tool_running() {
   [ -f "$TOOL_STATE" ] || return 1
@@ -204,11 +224,16 @@ case "$cmd" in
     [ -n "$dir" ] || die "$(t "未找到虚拟机：$1" "VM not found: $1")"
     cat "$dir/vm.json"; echo ;;
   show)
-    if [ -n "$1" ]; then vmstart_url "show?name=$(urlencode "$1")"; else open -b "$VMSTART_ID"; fi ;;
+    if [ -n "$1" ]; then
+      dir="$(find_vm_dir "$1")"
+      [ -n "$dir" ] || die "$(t "未找到虚拟机：$1" "VM not found: $1")"
+      vmstart_url "show?id=$(urlencode "$(vm_id "$dir")")"
+    elif [ -n "$SELF_APP" ]; then open "$SELF_APP"; else open -b "$VMSTART_ID"; fi ;;
   start|stop)
     [ -n "$1" ] || die "$(t '请指定虚拟机名称' 'VM name required')"
-    [ -n "$(find_vm_dir "$1")" ] || die "$(t "未找到虚拟机：$1" "VM not found: $1")"
-    vmstart_url "$cmd?name=$(urlencode "$1")"
+    dir="$(find_vm_dir "$1")"
+    [ -n "$dir" ] || die "$(t "未找到虚拟机：$1" "VM not found: $1")"
+    vmstart_url "$cmd?id=$(urlencode "$(vm_id "$dir")")"
     if [ "$cmd" = start ]; then t "已发送启动命令：$1" "Sent start: $1"; else t "已发送停止命令：$1" "Sent stop: $1"; fi; echo ;;
   add)
     [ -n "$1" ] || die "$(t '请指定镜像文件' 'Image file required')"

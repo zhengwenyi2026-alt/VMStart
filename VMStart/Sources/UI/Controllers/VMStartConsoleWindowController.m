@@ -703,13 +703,16 @@ static const NSInteger kSerialPort = 4321;
         [self.serialTerminal connectWithHost:@"127.0.0.1" port:kSerialPort];
     });
 
+    __weak typeof(self) weakSelf = self;
     self.vncViewer.onConnected = ^{
-        [self appendLog:[NSString stringWithFormat:@"[VNC] %@\n", AMLocalizedString(@"console.log.vncConnected")]];
-        self.statusBar.stringValue = AMLocalizedStringF(@"console.runningResolution",
-            (long)self.vncViewer.framebufferWidth, (long)self.vncViewer.framebufferHeight);
+        typeof(self) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        [strongSelf appendLog:[NSString stringWithFormat:@"[VNC] %@\n", AMLocalizedString(@"console.log.vncConnected")]];
+        strongSelf.statusBar.stringValue = AMLocalizedStringF(@"console.runningResolution",
+            (long)strongSelf.vncViewer.framebufferWidth, (long)strongSelf.vncViewer.framebufferHeight);
     };
     self.vncViewer.onDisconnected = ^{
-        [self appendLog:[NSString stringWithFormat:@"[VNC] %@\n", AMLocalizedString(@"console.log.vncDisconnected")]];
+        [weakSelf appendLog:[NSString stringWithFormat:@"[VNC] %@\n", AMLocalizedString(@"console.log.vncDisconnected")]];
     };
 
     // Start resource monitoring

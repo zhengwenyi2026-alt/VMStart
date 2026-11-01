@@ -464,6 +464,10 @@ static NSString *const kVMConfigFileName = @"vm.json";
     } else if (self.machineType && ![self.machineType isEqualToString:@"default"]) {
         [args addObject:@"-M"];
         [args addObject:self.machineType];
+    } else if (isARM32 || isAArch64) {
+        // qemu-system-arm/aarch64 没有默认机型，不指定会直接报错退出
+        [args addObject:@"-M"];
+        [args addObject:@"virt"];
     }
     // CPU - use host passthrough on Apple Silicon for AArch64
     if (isAArch64 && isAppleSiliconHost && self.enableAcceleration) {
@@ -651,7 +655,6 @@ static NSString *const kVMConfigFileName = @"vm.json";
     // Shared folders via virtio-9p
     for (NSInteger i = 0; i < (NSInteger)self.sharedFolders.count; i++) {
         NSDictionary *folder = self.sharedFolders[i];
-        NSString *name = folder[@"name"] ?: [NSString stringWithFormat:@"share%ld", (long)i];
         NSString *path = folder[@"hostPath"];
         if (path.length == 0) continue;
         NSString *devId = [NSString stringWithFormat:@"fs%ld", (long)i];
@@ -1018,6 +1021,7 @@ static NSString *const kVMConfigFileName = @"vm.json";
 + (VMStartArchitecture)architectureForImageFilename:(NSString *)filename {
     NSString *name = filename.lowercaseString;
     if ([name containsString:@"arm64"] || [name containsString:@"aarch64"] || [name containsString:@"armv8"]) return VMStartArchAArch64;
+    if ([name containsString:@"armhf"] || [name containsString:@"armv7"] || [name containsString:@"armel"] || [name containsString:@"arm32"]) return VMStartArchARM;
     if ([name containsString:@"riscv64"]) return VMStartArchRISCV64;
     if ([name containsString:@"ppc64"]) return VMStartArchPPC64;
     if ([name containsString:@"i386"] || [name containsString:@"i686"] || [name containsString:@"x86-32"]) return VMStartArchX86;
@@ -1033,7 +1037,7 @@ static NSString *const kVMConfigFileName = @"vm.json";
     NSInteger memoryMB = modernWindows ? 8192 : (linux ? 4096 : 2048);
     memoryMB = MIN(memoryMB, MAX(1024, hostMemoryMB / 2));
     NSInteger diskGB = modernWindows ? 80 : (linux ? 40 : 30);
-    NSString *machine = architecture == VMStartArchAArch64 ? @"virt" : @"pc-q35";
+    NSString *machine = (architecture == VMStartArchAArch64 || architecture == VMStartArchARM) ? @"virt" : @"pc-q35";
 #if defined(__arm64__)
     BOOL nativeAcceleration = architecture == VMStartArchAArch64;
 #else

@@ -28,8 +28,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)stopVMByID:(NSString *)vmID;
 
 // 日志与打印
-- (void)showLogPanel;
-- (void)printLogs;
+- (void)showLogPanel:(nullable id)sender;
+- (void)printLogs:(nullable id)sender;
 - (void)appendLog:(NSString *)logEntry;
 - (void)checkPrinterAvailability;
 

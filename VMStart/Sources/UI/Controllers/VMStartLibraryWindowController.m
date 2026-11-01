@@ -1488,7 +1488,6 @@
     [panel beginSheetModalForWindow:self.window completionHandler:^(NSInteger result) {
         if (result == NSModalResponseOK && panel.URL) {
             // Generate OVF XML
-            NSMutableDictionary *ovfDict = [vm toDictionary];
             NSString *ovfXML = [NSString stringWithFormat:@"<?xml version=\"1.0\"?>\n"
                 "<Envelope xmlns=\"http://schemas.dmtf.org/ovf/envelope/1\">\n"
                 "  <VirtualSystem ovf:id=\"%@\">\n"
@@ -1583,7 +1582,7 @@
 
 #pragma mark - Drag & Drop
 
-- (NSDragOperation)tableView:(NSTableView *)tv validateDrop:(id<NSDraggingInfo>)info proposedRow:(NSInteger *)row proposedDropOperation:(NSTableViewDropOperation *)op {
+- (NSDragOperation)tableView:(NSTableView *)tv validateDrop:(id<NSDraggingInfo>)info proposedRow:(NSInteger)row proposedDropOperation:(NSTableViewDropOperation)op {
     NSPasteboard *pb = info.draggingPasteboard;
     if ([pb.types containsObject:NSPasteboardTypeFileURL]) {
         return NSDragOperationCopy;
@@ -1818,8 +1817,8 @@
     }
 
     NSPrintInfo *printInfo = [NSPrintInfo sharedPrintInfo];
-    printInfo.horizontalPagination = NSFitPagination;
-    printInfo.verticalPagination = NSAutoPagination;
+    printInfo.horizontalPagination = NSPrintingPaginationModeFit;
+    printInfo.verticalPagination = NSPrintingPaginationModeAutomatic;
 
     // 构建打印内容
     NSMutableAttributedString *printText = [[NSMutableAttributedString alloc] init];
