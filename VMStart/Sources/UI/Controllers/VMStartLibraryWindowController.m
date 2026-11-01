@@ -1180,14 +1180,22 @@
     }
 
     [vm saveToBundle];
-    // 去重：如果已存在相同 identifier 的 VM，先移除旧的
+    // 去重：如果已存在相同名称的 VM，先移除旧的（同一 ISO 会生成相同名称）
     NSMutableArray *toRemove = [NSMutableArray array];
     for (VMStartVirtualMachine *existing in self.virtualMachines) {
-        if ([existing.vmIdentifier isEqualToString:vm.vmIdentifier]) {
+        if ([existing.name isEqualToString:vm.name]) {
             [toRemove addObject:existing];
         }
     }
+    // 从数组中移除旧的 VM
     [self.virtualMachines removeObjectsInArray:toRemove];
+    // 删除旧的 VM bundle 目录
+    NSFileManager *fm = [NSFileManager defaultManager];
+    for (VMStartVirtualMachine *old in toRemove) {
+        if (old.vmBundlePath) {
+            [fm removeItemAtPath:old.vmBundlePath error:nil];
+        }
+    }
     [self.virtualMachines addObject:vm];
     [self sortVMs];
     self.filteredVMs = nil;
