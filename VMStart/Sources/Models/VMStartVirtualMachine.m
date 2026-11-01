@@ -965,33 +965,33 @@ static NSString *const kVMConfigFileName = @"vm.json";
         case VMStartOSWindowsXP:
             return @{@"arch": @(VMStartArchX86), @"machine": @"pc-i440fx", @"cpu": @"pentium3", @"cores": @(1), @"memMB": @(512), @"diskGB": @(20), @"vram": @(64)};
         case VMStartOSWindows7:
-            return @{@"arch": @(VMStartArchX86_64), @"machine": @"pc-q35", @"cpu": @"core2duo", @"cores": @(2), @"memMB": @(2048), @"diskGB": @(40), @"vram": @(256)};
+            return @{@"arch": @(VMStartArchX86_64), @"machine": @"q35", @"cpu": @"core2duo", @"cores": @(2), @"memMB": @(2048), @"diskGB": @(40), @"vram": @(256)};
         case VMStartOSWindows10:
         case VMStartOSWindows11:
-            return @{@"arch": @(VMStartArchX86_64), @"machine": @"pc-q35", @"cpu": @"host", @"cores": @(4), @"memMB": @(4096), @"diskGB": @(64), @"vram": @(512), @"tpm": @(YES)};
+            return @{@"arch": @(VMStartArchX86_64), @"machine": @"q35", @"cpu": @"host", @"cores": @(4), @"memMB": @(4096), @"diskGB": @(64), @"vram": @(512), @"tpm": @(YES)};
         case VMStartOSUbuntu:
         case VMStartOSDebian:
         case VMStartOSFedora:
         case VMStartOSCentOS:
         case VMStartOSArch:
-            return @{@"arch": @(VMStartArchX86_64), @"machine": @"pc-q35", @"cpu": @"host", @"cores": @(2), @"memMB": @(2048), @"diskGB": @(30), @"vram": @(256)};
+            return @{@"arch": @(VMStartArchX86_64), @"machine": @"q35", @"cpu": @"host", @"cores": @(2), @"memMB": @(2048), @"diskGB": @(30), @"vram": @(256)};
         case VMStartOSLinux:
-            return @{@"arch": @(VMStartArchX86_64), @"machine": @"pc-q35", @"cpu": @"host", @"cores": @(2), @"memMB": @(1024), @"diskGB": @(20), @"vram": @(128)};
+            return @{@"arch": @(VMStartArchX86_64), @"machine": @"q35", @"cpu": @"host", @"cores": @(2), @"memMB": @(1024), @"diskGB": @(20), @"vram": @(128)};
         case VMStartOSFreeBSD:
         case VMStartOSOpenBSD:
-            return @{@"arch": @(VMStartArchX86_64), @"machine": @"pc-q35", @"cpu": @"host", @"cores": @(1), @"memMB": @(1024), @"diskGB": @(20), @"vram": @(64)};
+            return @{@"arch": @(VMStartArchX86_64), @"machine": @"q35", @"cpu": @"host", @"cores": @(1), @"memMB": @(1024), @"diskGB": @(20), @"vram": @(64)};
         case VMStartOSMacOSX:
             return @{@"arch": @(VMStartArchAArch64), @"machine": @"virt", @"cpu": @"host", @"cores": @(4), @"memMB": @(8192), @"diskGB": @(64), @"vram": @(512)};
         case VMStartOSClassicMac:
             return @{@"arch": @(VMStartArchPPC), @"machine": @"mac99", @"cpu": @"default", @"cores": @(1), @"memMB": @(256), @"diskGB": @(2), @"vram": @(16)};
         case VMStartOSAndroid:
-            return @{@"arch": @(VMStartArchX86_64), @"machine": @"pc-q35", @"cpu": @"host", @"cores": @(2), @"memMB": @(2048), @"diskGB": @(8), @"vram": @(256)};
+            return @{@"arch": @(VMStartArchX86_64), @"machine": @"q35", @"cpu": @"host", @"cores": @(2), @"memMB": @(2048), @"diskGB": @(8), @"vram": @(256)};
         case VMStartOSDOS:
             return @{@"arch": @(VMStartArchX86), @"machine": @"pc-i440fx", @"cpu": @"pentium", @"cores": @(1), @"memMB": @(64), @"diskGB": @(2), @"vram": @(4)};
         case VMStartOSReactOS:
             return @{@"arch": @(VMStartArchX86), @"machine": @"pc-i440fx", @"cpu": @"pentium3", @"cores": @(1), @"memMB": @(512), @"diskGB": @(10), @"vram": @(64)};
         default:
-            return @{@"arch": @(VMStartArchX86_64), @"machine": @"pc-q35", @"cpu": @"host", @"cores": @(2), @"memMB": @(2048), @"diskGB": @(30), @"vram": @(256)};
+            return @{@"arch": @(VMStartArchX86_64), @"machine": @"q35", @"cpu": @"host", @"cores": @(2), @"memMB": @(2048), @"diskGB": @(30), @"vram": @(256)};
     }
 }
 
@@ -1037,7 +1037,7 @@ static NSString *const kVMConfigFileName = @"vm.json";
     NSInteger memoryMB = modernWindows ? 8192 : (linux ? 4096 : 2048);
     memoryMB = MIN(memoryMB, MAX(1024, hostMemoryMB / 2));
     NSInteger diskGB = modernWindows ? 80 : (linux ? 40 : 30);
-    NSString *machine = (architecture == VMStartArchAArch64 || architecture == VMStartArchARM) ? @"virt" : @"pc-q35";
+    NSString *machine = (architecture == VMStartArchAArch64 || architecture == VMStartArchARM) ? @"virt" : @"q35";
 #if defined(__arm64__)
     BOOL nativeAcceleration = architecture == VMStartArchAArch64;
 #else
