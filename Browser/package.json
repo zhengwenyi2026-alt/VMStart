@@ -5,5 +5,28 @@
   "description": "VMStart 系统镜像下载与虚拟机创建工具",
   "main": "main.js",
   "author": "zhengwenyi2026-alt",
-  "license": "GPL-2.0-only"
+  "license": "GPL-2.0-only",
+  "scripts": {
+    "build": "electron-builder --mac --x64 --arm64",
+    "build:arm64": "electron-builder --mac --arm64",
+    "start": "electron ."
+  },
+  "build": {
+    "appId": "com.vmstart.image-tool",
+    "productName": "VMStart 镜像工具",
+    "mac": {
+      "target": "zip",
+      "category": "public.app-category.utilities"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "ui/**/*",
+      "assets/**/*"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  }
 }

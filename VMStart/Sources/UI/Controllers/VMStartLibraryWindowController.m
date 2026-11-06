@@ -1731,10 +1731,16 @@
 #pragma mark - Welcome View Actions
 
 - (void)downloadImage:(id)sender {
-    // 使用系统默认浏览器打开镜像下载页面
-    NSURL *url = [NSURL URLWithString:@"https://cdimage.ubuntu.com/releases/"];
-    if (url) {
-        [[NSWorkspace sharedWorkspace] openURL:url];
+    // 启动 VMStart 镜像工具（自带浏览器）
+    NSString *toolPath = @"/Applications/VMStart 镜像工具.app";
+    if ([[NSFileManager defaultManager] fileExistsAtPath:toolPath]) {
+        [[NSWorkspace sharedWorkspace] openApplicationAtURL:[NSURL fileURLWithPath:toolPath] configuration:[NSWorkspaceOpenConfiguration new] completionHandler:nil];
+    } else {
+        // 镜像工具未安装，提示用户
+        NSAlert *alert = [[NSAlert alloc] init];
+        alert.messageText = AMLocalizedString(@"browserImport.toolNotFound.title");
+        alert.informativeText = AMLocalizedString(@"browserImport.toolNotFound.message");
+        [alert runModal];
     }
     [self appendLog:[@"[INFO] " stringByAppendingString:AMLocalizedString(@"lib.log.openDownload")]];
 }

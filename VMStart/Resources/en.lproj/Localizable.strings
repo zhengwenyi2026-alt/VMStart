@@ -572,3 +572,5 @@
 "browserImport.diskCreateFailed.status" = "qemu-img failed. Please check if there is enough disk space.";
 "browserImport.qemuImgNotFound.title" = "qemu-img Not Found";
 "browserImport.qemuImgNotFound.message" = "Cannot find qemu-img tool. Please install QEMU or add it to PATH.";
+"browserImport.toolNotFound.title" = "Image Tool Not Installed";
+"browserImport.toolNotFound.message" = "Please install VMStart Image Tool to Applications folder first.";

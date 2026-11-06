@@ -572,3 +572,5 @@
 "browserImport.diskCreateFailed.status" = "qemu-img 执行失败，请检查是否有足够的磁盘空间。";
 "browserImport.qemuImgNotFound.title" = "未找到 qemu-img";
 "browserImport.qemuImgNotFound.message" = "无法找到 qemu-img 工具。请安装 QEMU 或将其添加到 PATH。";
+"browserImport.toolNotFound.title" = "镜像工具未安装";
+"browserImport.toolNotFound.message" = "请先安装 VMStart 镜像工具到\"应用程序\"文件夹。";
